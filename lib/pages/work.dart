@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:qa_imageprocess/model/image_model.dart';
+import 'package:qa_imageprocess/user_session.dart';
 
 class Work extends StatefulWidget {
   const Work({super.key});
@@ -8,37 +12,421 @@ class Work extends StatefulWidget {
 }
 
 class _WorkState extends State<Work> {
+  // 类目相关状态
+  List<Map<String, dynamic>> _categories = [];
+  String? _selectedCategoryId;
+
+  // 采集类型相关状态
+  List<Map<String, dynamic>> _collectorTypes = [];
+  String? _selectedCollectorTypeId;
+
+  // 问题方向相关状态
+  List<Map<String, dynamic>> _questionDirections = [];
+  String? _selectedQuestionDirectionId;
+
+  // 添加必要的状态变量
+  int _currentPage = 1;
+  int _pageSize = 20;
+  int _totalItems = 0;
+  List<ImageModel> _images = [];
+  bool _isLoading = false;
+
   @override
-  Widget build(BuildContext context) {
-    return Container();
+  void initState() {
+    super.initState();
+    _fetchCategories(); // 初始化时获取类目
   }
 
-    Widget _buildTitleSelector() {
+  // 查询图片的方法
+  Future<void> _fetchImages() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final categoryName = _categories.firstWhere(
+        (item) => item['id'] == _selectedCategoryId,
+        orElse: () => {},
+      )['name'];
+      final collectorTypeName = _collectorTypes.firstWhere(
+        (item) => item['id'] == _selectedCollectorTypeId,
+        orElse: () => {},
+      )['name'];
+      final questionDirectionName = _questionDirections.firstWhere(
+        (item) => item['id'] == _selectedQuestionDirectionId,
+        orElse: () => {},
+      )['name'];
+
+      final endpoint =
+          '/api/image/my?page=$_currentPage&pageSize=$_pageSize'
+          '${categoryName != null ? '&category=$categoryName' : ''}'
+          '${collectorTypeName != null ? '&collector_type=$collectorTypeName' : ''}'
+          '${questionDirectionName != null ? '&question_direction=$questionDirectionName' : ''}';
+
+      final response = await http.get(
+        Uri.parse('${UserSession().baseUrl}$endpoint'),
+        headers: {'Authorization': 'Bearer ${UserSession().token ?? ''}'},
+      );
+
+      print(response.body);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final imagesData = data['data']['data']['images'] as List<dynamic>;
+        final pagination =
+            data['data']['data']['pagination'] as Map<String, dynamic>;
+
+        setState(() {
+          _images = imagesData
+              .map<ImageModel>((item) => ImageModel.fromJson(item))
+              .toList();
+          _totalItems = pagination['total'] as int;
+        });
+      } else {
+        throw Exception('Failed to load images: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error fetching images: $e');
+      // 这里可以添加错误提示
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  // 通用API请求方法
+  Future<List<dynamic>> _fetchData(String endpoint) async {
+    final response = await http.get(
+      Uri.parse('${UserSession().baseUrl}$endpoint'),
+      headers: {'Authorization': 'Bearer ${UserSession().token ?? ''}'},
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      return data['data'] as List<dynamic>;
+    } else {
+      throw Exception('Failed to load data from $endpoint');
+    }
+  }
+
+  // 获取所有类目
+  Future<void> _fetchCategories() async {
+    try {
+      final categories = await _fetchData('/api/category/');
+      setState(() {
+        _categories = categories.map<Map<String, dynamic>>((item) {
+          return {
+            'id': item['categoryID'].toString(),
+            'name': item['categoryName'],
+          };
+        }).toList();
+      });
+    } catch (e) {
+      print('Error fetching categories: $e');
+    }
+  }
+
+  // 根据类目ID获取采集类型
+  Future<void> _fetchCollectorTypes(String? categoryId) async {
+    if (categoryId == null) {
+      setState(() {
+        _collectorTypes = [];
+        _selectedCollectorTypeId = null;
+        _questionDirections = [];
+        _selectedQuestionDirectionId = null;
+      });
+      return;
+    }
+
+    try {
+      final collectorTypes = await _fetchData(
+        '/api/category/$categoryId/collector-types',
+      );
+      setState(() {
+        _collectorTypes = collectorTypes.map<Map<String, dynamic>>((item) {
+          return {
+            'id': item['collectorTypeID'].toString(),
+            'name': item['collectorTypeName'],
+          };
+        }).toList();
+        _selectedCollectorTypeId = null;
+        _questionDirections = [];
+        _selectedQuestionDirectionId = null;
+      });
+    } catch (e) {
+      print('Error fetching collector types: $e');
+    }
+  }
+
+  // 根据采集类型ID获取问题方向
+  Future<void> _fetchQuestionDirections(String? collectorTypeId) async {
+    if (collectorTypeId == null) {
+      setState(() {
+        _questionDirections = [];
+        _selectedQuestionDirectionId = null;
+      });
+      return;
+    }
+
+    try {
+      final questionDirections = await _fetchData(
+        '/api/category/collector-types/$collectorTypeId/question-directions',
+      );
+      setState(() {
+        _questionDirections = questionDirections.map<Map<String, dynamic>>((
+          item,
+        ) {
+          return {
+            'id': item['questionDirectionID'].toString(),
+            'name': item['questionDirectionName'],
+          };
+        }).toList();
+        _selectedQuestionDirectionId = null;
+      });
+    } catch (e) {
+      print('Error fetching question directions: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Column(
+        children: [
+          _buildTitleSelector(),
+          Expanded(child: _buildImageGrid())
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTitleSelector() {
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Wrap(
         spacing: 16,
         runSpacing: 16,
         children: [
-          // 采集类目
-          // _buildLevelDropdown(
-
-          // ),
-          // // 采集类型
-          // _buildLevelDropdown(
-
-          // ),
-
-          // // 图片问题方向
-          // _buildLevelDropdown(
-
-          // ),
-          // 搜索按钮
-          ElevatedButton(
-            onPressed: () => {
-
+          // 采集类目下拉框
+          _buildLevelDropdown(
+            value: _selectedCategoryId,
+            options: _categories.map((e) => e['id'] as String).toList(),
+            hint: '采集类目',
+            displayValues: _categories.fold({}, (map, item) {
+              map[item['id']] = item['name'];
+              return map;
+            }),
+            onChanged: (newValue) {
+              _selectedCategoryId = newValue;
+              _fetchCollectorTypes(newValue);
             },
-            child: Text('查询'),
+          ),
+
+          // 采集类型下拉框
+          _buildLevelDropdown(
+            value: _selectedCollectorTypeId,
+            options: _collectorTypes.map((e) => e['id'] as String).toList(),
+            hint: '采集类型',
+            displayValues: _collectorTypes.fold({}, (map, item) {
+              map[item['id']] = item['name'];
+              return map;
+            }),
+            onChanged: (newValue) {
+              _selectedCollectorTypeId = newValue;
+              _fetchQuestionDirections(newValue);
+            },
+            enabled: _selectedCategoryId != null,
+          ),
+
+          // 问题方向下拉框
+          _buildLevelDropdown(
+            value: _selectedQuestionDirectionId,
+            options: _questionDirections.map((e) => e['id'] as String).toList(),
+            hint: '问题方向',
+            displayValues: _questionDirections.fold({}, (map, item) {
+              map[item['id']] = item['name'];
+              return map;
+            }),
+            onChanged: (newValue) {
+              setState(() {
+                _selectedQuestionDirectionId = newValue;
+              });
+            },
+            enabled: _selectedCollectorTypeId != null,
+          ),
+
+          // 查询按钮
+          ElevatedButton(
+            onPressed: () async {
+              _currentPage = 1;
+              await _fetchImages();
+            },
+            child: const Text('查询'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 添加图片网格显示组件
+  Widget _buildImageGrid() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_images.isEmpty) {
+      return const Center(
+        child: Text('暂无图片数据', style: TextStyle(fontSize: 18)),
+      );
+    }
+
+    // 计算网格列数（响应式设计）
+    final width = MediaQuery.of(context).size.width;
+    int crossAxisCount = 1;
+    if (width > 1200) {
+      crossAxisCount = 4; // 大屏幕显示4列
+    } else if (width > 900) {
+      crossAxisCount = 3; // 中等屏幕显示3列
+    } else if (width > 600) {
+      crossAxisCount = 2; // 小屏幕显示2列
+    }
+
+    return Column(
+      children: [
+        Expanded(
+          child: GridView.builder(
+            padding: const EdgeInsets.all(16),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: crossAxisCount,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              childAspectRatio: 0.7, // 卡片宽高比
+            ),
+            itemCount: _images.length,
+            itemBuilder: (context, index) {
+              final image = _images[index];
+              return _buildImageCard(image);
+            },
+          ),
+        ),
+        // 分页控件
+        _buildPaginationControls(),
+      ],
+    );
+  }
+
+  // 构建图片卡片组件
+  Widget _buildImageCard(ImageModel image) {
+  final imageUrl = image.path != null
+      ? '${Uri.parse(UserSession().baseUrl).origin}/${image.path}'
+      : null;
+
+  return Card(
+    elevation: 4,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    child: Padding(
+      padding: const EdgeInsets.all(12),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final cardHeight = constraints.maxHeight;
+          final imageHeight = 2*cardHeight / 3; 
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (imageUrl != null)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    imageUrl,
+                    width: double.infinity,
+                    height: imageHeight, 
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        height: imageHeight,
+                        color: Colors.grey[200],
+                        child: const Center(child: Icon(Icons.broken_image)),
+                      );
+                    },
+                  ),
+                ),
+              const SizedBox(height: 5),
+              if (image.question?.isNotEmpty ?? false)
+                Text(
+                  "问题: ${image.question!}",
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              if (image.answer?.isNotEmpty ?? false)
+                Padding(
+                  padding: const EdgeInsets.only(top: 1),
+                  child: Text(
+                    "答案: ${image.answer!}",
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              const Spacer(),
+
+              const SizedBox(height: 1),
+              Row(
+                children: [
+                  const Icon(Icons.person, size: 12),
+                  const SizedBox(width: 4),
+                  Text(
+                    image.originator.name,
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  const Spacer(),
+                  Text(
+                    DateTime.parse(image.created_at).toIso8601String(),
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+    ),
+  );
+}
+
+
+  // 分页控件
+  Widget _buildPaginationControls() {
+    final totalPages = (_totalItems / _pageSize).ceil();
+
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: _currentPage > 1
+                ? () {
+                    setState(() {
+                      _currentPage--;
+                    });
+                    _fetchImages();
+                  }
+                : null,
+          ),
+          Text('$_currentPage / $totalPages'),
+          IconButton(
+            icon: const Icon(Icons.arrow_forward),
+            onPressed: _currentPage < totalPages
+                ? () {
+                    setState(() {
+                      _currentPage++;
+                    });
+                    _fetchImages();
+                  }
+                : null,
           ),
         ],
       ),
@@ -49,37 +437,31 @@ class _WorkState extends State<Work> {
     required String? value,
     required List<String> options,
     required String hint,
+    required Map<String, String> displayValues,
     bool enabled = true,
     ValueChanged<String?>? onChanged,
   }) {
-    // 确保当前值存在于选项中
-    final effectiveValue = options.contains(value) ? value : null;
     return Container(
       width: 180,
       child: DropdownButtonFormField<String>(
-        value: effectiveValue,
+        value: value,
         isExpanded: true,
         decoration: InputDecoration(
           labelText: hint,
-          border: OutlineInputBorder(),
+          border: const OutlineInputBorder(),
+          enabled: enabled,
         ),
-        items: [
-          if (options.isEmpty)
-            DropdownMenuItem(
-              value: null,
-              child: Text(
-                enabled ? '选择 $hint' : '无可用选项',
-                style: TextStyle(color: Colors.grey),
-              ),
-            )
-          else
-            ...options.map(
-              (title) => DropdownMenuItem(value: title, child: Text(title)),
+        items: options.map((id) {
+          return DropdownMenuItem<String>(
+            value: id,
+            child: Text(
+              displayValues[id] ?? '未知',
+              overflow: TextOverflow.ellipsis,
             ),
-        ],
-        onChanged: onChanged,
+          );
+        }).toList(),
+        onChanged: enabled ? onChanged : null,
       ),
     );
   }
-
 }
