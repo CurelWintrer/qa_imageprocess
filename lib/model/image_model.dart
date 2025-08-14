@@ -1,11 +1,13 @@
+import 'package:qa_imageprocess/model/originator_model.dart';
+import 'package:qa_imageprocess/model/question_model.dart';
+
 class ImageModel {
   final int imageID;
   final String? fileName;
   final String category;
   final String collectorType;
   final String questionDirection;
-  final String? question;
-  final String? answer;
+  final List<QuestionModel>? questions; // 存储多个问题
   final String? difficulty;
   final String? path;
   final int state;
@@ -21,8 +23,7 @@ class ImageModel {
     required this.category,
     required this.collectorType,
     required this.questionDirection,
-    this.question,
-    this.answer,
+    this.questions,
     this.difficulty,
     this.path,
     required this.state,
@@ -34,25 +35,34 @@ class ImageModel {
   });
 
   factory ImageModel.fromJson(Map<String, dynamic> json) {
-    return ImageModel(
-      imageID: json['id'] as int,
-      fileName: json['file_name'] as String?,
-      category: json['category'] as String,
-      collectorType: json['collector_type'] as String,
-      questionDirection: json['question_direction'] as String,
-      question: json['question'] as String?,
-      answer: json['answer'] as String?,
-      difficulty: json['difficulty'] as String?,
-      path: json['path'] as String?,
-      state: json['state'] as int,
-      created_at: json['created_at'] as String,
-      updated_at: json['updated_at'] as String,
-      // 从originator对象中获取id
-      originatorID: (json['originator'] as Map<String, dynamic>)['id'] as int,
-      checkImageListID: json['check_image_list_id'] as int?,
-      originator: Originator.fromJson(json['originator'] as Map<String, dynamic>),
-    );
+  // 安全处理 questions 字段
+  List<QuestionModel> questions = [];
+
+  if (json['questions'] != null && json['questions'] is List) {
+    questions = (json['questions'] as List)
+        .map((questionJson) => QuestionModel.fromJson(questionJson))
+        .toList();
   }
+
+  return ImageModel(
+    imageID: json['id'] as int? ?? 0,
+    fileName: json['file_name'] as String?,
+    category: json['category'] as String? ?? '',
+    collectorType: json['collector_type'] as String? ?? '',
+    questionDirection: json['question_direction'] as String? ?? '',
+    questions: questions,
+    difficulty: json['difficulty'] as String?,
+    path: json['path'] as String?,
+    state: json['state'] as int? ?? 0,
+    created_at: json['created_at'] as String? ?? '',
+    updated_at: json['updated_at'] as String? ?? '',
+    originatorID: (json['originator'] as Map<String, dynamic>?)?['id'] as int? ?? 0,
+    checkImageListID: json['check_image_list_id'] as int?,
+    originator: Originator.fromJson(
+      json['originator'] as Map<String, dynamic>? ?? {},
+    ),
+  );
+}
 
   ImageModel copyWith({
     int? imageID,
@@ -60,8 +70,7 @@ class ImageModel {
     String? category,
     String? collectorType,
     String? questionDirection,
-    String? question,
-    String? answer,
+    List<QuestionModel>? questions,
     String? difficulty,
     String? path,
     int? state,
@@ -77,8 +86,7 @@ class ImageModel {
       category: category ?? this.category,
       collectorType: collectorType ?? this.collectorType,
       questionDirection: questionDirection ?? this.questionDirection,
-      question: question ?? this.question,
-      answer: answer ?? this.answer,
+      questions: questions ?? this.questions,
       difficulty: difficulty ?? this.difficulty,
       path: path ?? this.path,
       state: state ?? this.state,
@@ -91,56 +99,30 @@ class ImageModel {
   }
 
   Map<String, dynamic> toJson() {
+    List<Map<String, dynamic>> questionsJson = questions!
+        .map((question) => question.toJson())
+        .toList();
+
     return {
       'id': imageID,
       'file_name': fileName,
       'category': category,
       'collector_type': collectorType,
       'question_direction': questionDirection,
-      'question': question,
-      'answer': answer,
       'difficulty': difficulty,
       'path': path,
       'state': state,
       'created_at': created_at,
       'updated_at': updated_at,
-      'originator_id': originatorID, // 这里保持与原始JSON一致
+      'originator_id': originatorID,
       'check_image_list_id': checkImageListID,
       'originator': originator.toJson(),
+      'questions': questionsJson, // 添加 questions 到 JSON 中
     };
   }
 
   @override
   String toString() {
-    return 'ImageModel(imageID: $imageID, fileName: $fileName, category: $category)';
-  }
-}
-
-class Originator {
-  final int id;
-  final String name;
-
-  Originator({
-    required this.id,
-    required this.name,
-  });
-
-  factory Originator.fromJson(Map<String, dynamic> json) {
-    return Originator(
-      id: json['id'] as int,
-      name: json['name'] as String,
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-    };
-  }
-
-  @override
-  String toString() {
-    return 'Originator(id: $id, name: $name)';
+    return 'ImageModel(imageID: $imageID, fileName: $fileName, category: $category, questions: $questions)';
   }
 }
