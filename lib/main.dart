@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:qa_imageprocess/UserAccount/login_page.dart';
 import 'package:qa_imageprocess/home_page.dart';
 import 'package:qa_imageprocess/pages/system_set.dart';
+import 'package:qa_imageprocess/pages/work.dart';
 import 'package:qa_imageprocess/user_session.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -43,6 +44,7 @@ class MyApp extends StatelessWidget {
         '/home': (context) => const HomePage(),
         '/login': (context) => LoginPage(),
         '/systemSet': (context) => SystemSet(),
+        '/work':(context)=>Work(),
       },
     );
   }

@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:qa_imageprocess/model/answer_model.dart';
 import 'package:qa_imageprocess/model/image_model.dart';
 import 'package:qa_imageprocess/model/image_state.dart';
@@ -23,87 +26,59 @@ class ImageDetail extends StatefulWidget {
 
 class _ImageDetailState extends State<ImageDetail> {
   late ImageModel _currentImage;
-  final _editController = TextEditingController();
-  String? _editingField;
+  final _questionController = TextEditingController();
+  final _difficultyController = TextEditingController();
+  List<TextEditingController> _answerControllers = [];
+  int _correctAnswerIndex = 0;
   bool _isLoading = false;
+  bool _isSaving = false;
+  bool _isEditingQA = false;
 
   @override
   void initState() {
     super.initState();
     _currentImage = widget.image;
+    _initializeControllers();
+  }
+
+  void _initializeControllers() {
+    // 初始化问题控制器
+    if (_currentImage.questions != null &&
+        _currentImage.questions!.isNotEmpty) {
+      _questionController.text = _currentImage.questions!.first.questionText;
+
+      // 初始化答案控制器
+      _answerControllers = _currentImage.questions!.first.answers
+          .map((a) => TextEditingController(text: a.answerText))
+          .toList();
+
+      // 设置正确答案索引
+      _correctAnswerIndex = _currentImage.questions!.first.answers.indexWhere(
+        (a) =>
+            a.answerID == _currentImage.questions!.first.rightAnswer.answerID,
+      );
+      if (_correctAnswerIndex == -1) _correctAnswerIndex = 0;
+    } else {
+      // 如果没有问题，初始化默认值
+      _questionController.text = '';
+      _answerControllers = [TextEditingController(), TextEditingController()];
+      _correctAnswerIndex = 0;
+    }
+
+    // 初始化难度控制器
+    _difficultyController.text = ImageState.getDifficulty(
+      _currentImage.difficulty ?? 3,
+    );
   }
 
   @override
   void dispose() {
-    _editController.dispose();
+    _questionController.dispose();
+    _difficultyController.dispose();
+    for (var controller in _answerControllers) {
+      controller.dispose();
+    }
     super.dispose();
-  }
-
-  void _startEditing(String fieldName, String currentValue) {
-    _editingField = fieldName;
-    _editController.text = currentValue;
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text("编辑${_fieldDisplayName(fieldName)}"),
-        content: TextField(
-          controller: _editController,
-          autofocus: true,
-          maxLines: fieldName == 'answer' || fieldName == 'question' ? 3 : 1,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () {
-              _updateField(_editingField!, _editController.text);
-              Navigator.pop(context);
-            },
-            child: const Text('保存'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _updateField(String field, String value) {
-    setState(() {
-      if (field == 'question' &&
-          _currentImage.questions != null &&
-          _currentImage.questions!.isNotEmpty) {
-        // 更新第一个问题的问题文本
-        final firstQuestion = _currentImage.questions!.first;
-        final updatedQuestion = firstQuestion.copyWith(questionText: value);
-        _currentImage = _currentImage.copyWith(
-          questions: [updatedQuestion, ..._currentImage.questions!.sublist(1)],
-        );
-      } else if (field == 'answer' &&
-          _currentImage.questions != null &&
-          _currentImage.questions!.isNotEmpty) {
-        // 更新第一个问题的正确答案文本
-        final firstQuestion = _currentImage.questions!.first;
-        final updatedRightAnswer = firstQuestion.rightAnswer.copyWith(
-          answerText: value,
-        );
-        final updatedQuestion = firstQuestion.copyWith(
-          rightAnswer: updatedRightAnswer,
-        );
-        _currentImage = _currentImage.copyWith(
-          questions: [updatedQuestion, ..._currentImage.questions!.sublist(1)],
-        );
-      } else {
-        // 其他字段的更新
-        _currentImage = _currentImage.copyWith(
-          fileName: field == 'fileName' ? value : _currentImage.fileName,
-          category: field == 'category' ? value : _currentImage.category,
-          difficulty: field == 'difficulty' ? value : _currentImage.difficulty,
-        );
-      }
-    });
-    widget.onImageUpdated(_currentImage);
   }
 
   void _changeState(int newState) {
@@ -113,13 +88,285 @@ class _ImageDetailState extends State<ImageDetail> {
     widget.onImageUpdated(_currentImage);
   }
 
+  void _toggleQAEditing() {
+    setState(() {
+      _isEditingQA = !_isEditingQA;
+      if (!_isEditingQA) {
+        // 重置控制器状态
+        _initializeControllers();
+      }
+    });
+  }
+
+  void _addAnswerOption() {
+    setState(() {
+      _answerControllers.add(TextEditingController());
+    });
+  }
+
+  void _removeAnswerOption(int index) {
+    setState(() {
+      if (_answerControllers.length > 2) {
+        _answerControllers.removeAt(index);
+        if (_correctAnswerIndex == index) {
+          _correctAnswerIndex = 0;
+        } else if (_correctAnswerIndex > index) {
+          _correctAnswerIndex--;
+        }
+      }
+    });
+  }
+
+  Widget _buildQAEditor() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 问题编辑
+        const Text('问题:', style: TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _questionController,
+          maxLines: 2,
+          decoration: const InputDecoration(
+            border: OutlineInputBorder(),
+            hintText: '输入问题内容',
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // 答案选项编辑
+        const Text('答案选项:', style: TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        ..._answerControllers.asMap().entries.map((entry) {
+          int idx = entry.key;
+          TextEditingController controller = entry.value;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8.0),
+            child: Row(
+              children: [
+                Radio<int>(
+                  value: idx,
+                  groupValue: _correctAnswerIndex,
+                  onChanged: (value) {
+                    setState(() => _correctAnswerIndex = value!);
+                  },
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: controller,
+                    decoration: InputDecoration(
+                      border: const OutlineInputBorder(),
+                      hintText: '答案选项 ${idx + 1}',
+                      suffixIcon: _answerControllers.length > 2
+                          ? IconButton(
+                              icon: const Icon(Icons.delete),
+                              onPressed: () => _removeAnswerOption(idx),
+                            )
+                          : null,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+
+        // 添加答案按钮
+        TextButton(
+          onPressed: _addAnswerOption,
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [Icon(Icons.add), Text('添加答案选项')],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // 难度选择
+        const Text('难度:', style: TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          value: _difficultyController.text,
+          items: ['简单', '中等', '困难']
+              .map(
+                (level) => DropdownMenuItem(value: level, child: Text(level)),
+              )
+              .toList(),
+          onChanged: (value) {
+            if (value != null) {
+              _difficultyController.text = value;
+            }
+          },
+          decoration: const InputDecoration(border: OutlineInputBorder()),
+        ),
+        const SizedBox(height: 20),
+
+        // 保存和取消按钮
+        Row(
+          children: [
+            ElevatedButton(
+              onPressed: _isSaving ? null : _updateQuestionAndAnswers,
+              child: _isSaving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('保存更改'),
+            ),
+            const SizedBox(width: 16),
+            OutlinedButton(
+              onPressed: _isSaving ? null : _toggleQAEditing,
+              child: const Text('取消'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQAViewer() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 问题显示
+        const Text('问题:', style: TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        Text(
+          _currentImage.questions != null && _currentImage.questions!.isNotEmpty
+              ? _currentImage.questions!.first.questionText
+              : '未设置问题',
+        ),
+        const SizedBox(height: 16),
+
+        // 答案选项显示
+        const Text('答案选项:', style: TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        if (_currentImage.questions != null &&
+            _currentImage.questions!.isNotEmpty &&
+            _currentImage.questions!.first.answers.isNotEmpty)
+          ..._currentImage.questions!.first.answers.asMap().entries.map((
+            entry,
+          ) {
+            AnswerModel answer = entry.value;
+            bool isCorrect =
+                answer.answerID ==
+                _currentImage.questions!.first.rightAnswer.answerID;
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 4.0),
+              child: Row(
+                children: [
+                  Icon(
+                    isCorrect
+                        ? Icons.check_circle
+                        : Icons.radio_button_unchecked,
+                    color: isCorrect ? Colors.green : Colors.grey,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      answer.answerText,
+                      style: TextStyle(
+                        color: isCorrect ? Colors.green : null,
+                        fontWeight: isCorrect ? FontWeight.bold : null,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList()
+        else
+          const Text('未设置答案选项'),
+        const SizedBox(height: 16),
+
+        // 难度显示
+        const Text('难度:', style: TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        Text(ImageState.getDifficulty(_currentImage.difficulty ?? 3)),
+        const SizedBox(height: 20),
+
+        // 编辑QA按钮
+        ElevatedButton(onPressed: _toggleQAEditing, child: const Text('更改QA')),
+      ],
+    );
+  }
+
+  // 更新问题API调用
+  Future<void> _updateQuestionAndAnswers() async {
+    setState(() => _isSaving = true);
+
+    try {
+      // 收集答案文本
+      List<String> newAnswerTexts = _answerControllers
+          .where((c) => c.text.isNotEmpty)
+          .map((c) => c.text)
+          .toList();
+
+      if (newAnswerTexts.length < 2) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('请至少添加两个选项')));
+        return;
+      }
+
+      if (_correctAnswerIndex >= newAnswerTexts.length) {
+        _correctAnswerIndex = 0;
+      }
+
+      final response = await http.put(
+        Uri.parse(
+          '${UserSession().baseUrl}/api/image/${_currentImage.imageID}/qa',
+        ),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${UserSession().token}',
+        },
+        body: json.encode({
+          'difficulty': ImageState.getDifficultyValue(
+            _difficultyController.text,
+          ),
+          'questionText': _questionController.text,
+          'answers': newAnswerTexts,
+          'rightAnswerIndex': _correctAnswerIndex,
+        }),
+      );
+
+      print(response.body);
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        if (data['code'] == 200) {
+          final updatedImage = ImageModel.fromJson(data['data']);
+          setState(() {
+            _currentImage = updatedImage;
+            _isEditingQA = false;
+          });
+          widget.onImageUpdated(updatedImage);
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('更新成功')));
+        } else {
+          throw Exception('API error: ${data['message']}');
+        }
+      } else {
+        throw Exception('HTTP error ${response.statusCode}: ${response.body}');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('更新失败: $e')));
+    } finally {
+      setState(() => _isSaving = false);
+    }
+  }
+
   Future<void> _runAiTask() async {
     if (widget.onLongRunningTask == null) {
-      // 直接在组件中执行
       setState(() => _isLoading = true);
-      await Future.delayed(const Duration(seconds: 3)); // 模拟耗时任务
+      await Future.delayed(const Duration(seconds: 3));
 
-      // 创建更新后的问题和答案
       final newQuestion = QuestionModel(
         questionID: 0,
         questionText: "AI生成的问题",
@@ -132,75 +379,27 @@ class _ImageDetailState extends State<ImageDetail> {
       setState(() {
         _currentImage = updated;
         _isLoading = false;
+        _initializeControllers();
       });
       widget.onImageUpdated(updated);
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text("AI分析完成")));
     } else {
-      // 将任务交给父组件处理
       final task = () async {
-        await Future.delayed(const Duration(seconds: 3)); // 实际调用AI
-
-        // 创建更新后的问题和答案
+        await Future.delayed(const Duration(seconds: 3));
         final newQuestion = QuestionModel(
           questionID: 0,
           questionText: "AI生成的问题",
           rightAnswer: AnswerModel(answerID: 0, answerText: "AI生成的答案"),
           answers: [],
         );
-
         return _currentImage.copyWith(questions: [newQuestion]);
       };
-
       widget.onLongRunningTask!(task);
     }
   }
 
-  String _fieldDisplayName(String field) {
-    const names = {
-      'fileName': '文件名',
-      'category': '类别',
-      'collectorType': '收集类型',
-      'questionDirection': '问题方向',
-      'question': '问题',
-      'answer': '答案',
-      'difficulty': '难度',
-    };
-    return names[field] ?? field;
-  }
-
-  Widget _buildDetailRow(String title, String? value, {bool editable = true}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 100,
-            child: Text(
-              title,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-          Expanded(
-            child: editable
-                ? InkWell(
-                    onTap: () =>
-                        _startEditing(title.toLowerCase(), value ?? ''),
-                    child: Text(
-                      value ?? '未设置',
-                      style: TextStyle(
-                        color: value == null ? Colors.grey : null,
-                      ),
-                    ),
-                  )
-                : Text(value ?? '无'),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildImageSection() {
     return Expanded(
@@ -234,39 +433,36 @@ class _ImageDetailState extends State<ImageDetail> {
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 20),
-            _buildDetailRow('文件名', _currentImage.fileName, editable: false),
-            _buildDetailRow('类别', _currentImage.category, editable: false),
-            _buildDetailRow(
-              '收集类型',
-              _currentImage.collectorType,
-              editable: false,
+            Text(
+              '文件名: ${_currentImage.fileName ?? '未设置'}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
-            _buildDetailRow(
-              '问题方向',
-              _currentImage.questionDirection,
-              editable: false,
+            const SizedBox(height: 8),
+            Text(
+              '类别: ${_currentImage.category}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
-
-            // 显示第一个问题的问题文本
-            if (_currentImage.questions != null &&
-                _currentImage.questions!.isNotEmpty)
-              _buildDetailRow(
-                '问题',
-                _currentImage.questions!.first.questionText,
-              ),
-
-            // 显示第一个问题的正确答案文本
-            if (_currentImage.questions != null &&
-                _currentImage.questions!.isNotEmpty)
-              _buildDetailRow(
-                '答案',
-                _currentImage.questions!.first.rightAnswer.answerText,
-              ),
-
-            _buildDetailRow('难度', _currentImage.difficulty),
+            const SizedBox(height: 8),
+            Text(
+              '收集类型: ${_currentImage.collectorType}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '问题方向: ${_currentImage.questionDirection}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 20),
+            
+            // QA编辑/查看区域
+            _isEditingQA ? _buildQAEditor() : _buildQAViewer(),
+            const SizedBox(height: 20),
+            
+            // 审核状态
             _buildStateInfo(),
             const SizedBox(height: 20),
+            
+            // 操作按钮
             _buildActionButtons(),
           ],
         ),
@@ -281,10 +477,7 @@ class _ImageDetailState extends State<ImageDetail> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           decoration: BoxDecoration(
-            // color: ImageState.withOpacity(0.2),
-            color: ImageState.getStateColor(
-              _currentImage.state,
-            ).withOpacity(0.2),
+            color: ImageState.getStateColor(_currentImage.state).withOpacity(0.2),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Text(
@@ -333,6 +526,7 @@ class _ImageDetailState extends State<ImageDetail> {
     );
   }
 
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -342,11 +536,9 @@ class _ImageDetailState extends State<ImageDetail> {
             constraints.maxWidth < MediaQuery.of(context).size.width;
 
         if (isWide) {
-          // 宽屏布局：左右结构
           return Scaffold(
             body: Stack(
               children: [
-                // 主内容
                 Row(
                   children: [
                     _buildImageSection(),
@@ -354,7 +546,6 @@ class _ImageDetailState extends State<ImageDetail> {
                     _buildInfoSection(),
                   ],
                 ),
-                // 添加关闭按钮（适合在弹窗中显示）
                 if (isInDialog)
                   Positioned(
                     top: 16,
@@ -368,11 +559,9 @@ class _ImageDetailState extends State<ImageDetail> {
             ),
           );
         } else {
-          // 窄屏布局：上下结构
           return Scaffold(
             body: Stack(
               children: [
-                // 主内容
                 Column(
                   children: [
                     _buildImageSection(),
@@ -380,7 +569,6 @@ class _ImageDetailState extends State<ImageDetail> {
                     Expanded(child: _buildInfoSection()),
                   ],
                 ),
-                // 添加关闭按钮（适合在弹窗中显示）
                 if (isInDialog)
                   Positioned(
                     top: 16,

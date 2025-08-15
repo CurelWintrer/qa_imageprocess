@@ -1,6 +1,7 @@
 import 'package:qa_imageprocess/model/originator_model.dart';
 import 'package:qa_imageprocess/model/question_model.dart';
 
+//图片类
 class ImageModel {
   final int imageID;
   final String? fileName;
@@ -8,7 +9,7 @@ class ImageModel {
   final String collectorType;
   final String questionDirection;
   final List<QuestionModel>? questions; // 存储多个问题
-  final String? difficulty;
+  final int? difficulty;
   final String? path;
   final int state;
   final String created_at;
@@ -16,6 +17,7 @@ class ImageModel {
   final int originatorID;
   final int? checkImageListID;
   final Originator originator;
+  final int? workID;
 
   ImageModel({
     required this.imageID,
@@ -32,6 +34,7 @@ class ImageModel {
     required this.originatorID,
     this.checkImageListID,
     required this.originator,
+    this.workID,
   });
 
   factory ImageModel.fromJson(Map<String, dynamic> json) {
@@ -51,13 +54,14 @@ class ImageModel {
     collectorType: json['collector_type'] as String? ?? '',
     questionDirection: json['question_direction'] as String? ?? '',
     questions: questions,
-    difficulty: json['difficulty'] as String?,
+    difficulty: json['difficulty'] as int?,
     path: json['path'] as String?,
     state: json['state'] as int? ?? 0,
     created_at: json['created_at'] as String? ?? '',
     updated_at: json['updated_at'] as String? ?? '',
     originatorID: (json['originator'] as Map<String, dynamic>?)?['id'] as int? ?? 0,
     checkImageListID: json['check_image_list_id'] as int?,
+    workID: json['workID'],
     originator: Originator.fromJson(
       json['originator'] as Map<String, dynamic>? ?? {},
     ),
@@ -71,13 +75,14 @@ class ImageModel {
     String? collectorType,
     String? questionDirection,
     List<QuestionModel>? questions,
-    String? difficulty,
+    int? difficulty,
     String? path,
     int? state,
     String? created_at,
     String? updated_at,
     int? originatorID,
     int? checkImageListID,
+    int? workID,
     Originator? originator,
   }) {
     return ImageModel(
@@ -94,6 +99,7 @@ class ImageModel {
       updated_at: updated_at ?? this.updated_at,
       originatorID: originatorID ?? this.originatorID,
       checkImageListID: checkImageListID ?? this.checkImageListID,
+      workID: workID ?? this.workID,
       originator: originator ?? this.originator,
     );
   }
@@ -116,6 +122,7 @@ class ImageModel {
       'updated_at': updated_at,
       'originator_id': originatorID,
       'check_image_list_id': checkImageListID,
+      'workID':workID,
       'originator': originator.toJson(),
       'questions': questionsJson, // 添加 questions 到 JSON 中
     };

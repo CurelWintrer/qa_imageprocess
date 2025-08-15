@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:qa_imageprocess/model/user.dart';
 import 'dart:convert';
 
 import 'package:qa_imageprocess/user_session.dart';
@@ -202,7 +203,7 @@ class _ManagementPageState extends State<ManagementPage> {
     showDialog(
       context: context,
       builder: (context) {
-        int selectedRole = user.role;
+        int selectedRole = user.role??0;
         
         return StatefulBuilder(
           builder: (context, setDialogState) {
@@ -259,7 +260,7 @@ class _ManagementPageState extends State<ManagementPage> {
     showDialog(
       context: context,
       builder: (context) {
-        int selectedState = user.state;
+        int selectedState = user.state??0;
         print(user.userID);
         
         return StatefulBuilder(
@@ -401,7 +402,7 @@ class _ManagementPageState extends State<ManagementPage> {
               borderRadius: BorderRadius.circular(4),
             ),
             child: Text(
-              _roleText(user.role),
+              _roleText(user.role??0),
               style: const TextStyle(fontSize: 12),
             ),
           ),
@@ -411,12 +412,12 @@ class _ManagementPageState extends State<ManagementPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: _stateColor(user.state).withOpacity(0.2),
+              color: _stateColor(user.state??0).withOpacity(0.2),
               borderRadius: BorderRadius.circular(4),
             ),
             child: Text(
-              _stateText(user.state),
-              style: TextStyle(fontSize: 12, color: _stateColor(user.state)),
+              _stateText(user.state??0),
+              style: TextStyle(fontSize: 12, color: _stateColor(user.state??0)),
             ),
           ),
           const SizedBox(width: 10),
@@ -456,28 +457,3 @@ class _ManagementPageState extends State<ManagementPage> {
   }
 }
 
-class User {
-  final int userID;
-  final String name;
-  final String email;
-  final int role;
-  final int state;
-
-  User({
-    required this.userID,
-    required this.name,
-    required this.email,
-    required this.role,
-    required this.state,
-  });
-
-  factory User.fromJson(Map<String, dynamic> json) {
-    return User(
-      userID: json['userID'] as int? ?? 0,
-      name: json['name'] as String? ?? '未知用户',
-      email: json['email'] as String? ?? '无邮箱',
-      role: json['role'] as int? ?? 0,
-      state: json['state'] as int? ?? 0,
-    );
-  }
-}

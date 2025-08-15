@@ -4,6 +4,8 @@ import 'package:qa_imageprocess/navi/app_navigation_drawer.dart';
 import 'package:qa_imageprocess/pages/management_page.dart';
 import 'package:qa_imageprocess/pages/review_list.dart';
 import 'package:qa_imageprocess/pages/work.dart';
+import 'package:qa_imageprocess/pages/work_list.dart';
+import 'package:qa_imageprocess/pages/work_manager.dart';
 import 'package:qa_imageprocess/user_session.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
@@ -101,13 +103,14 @@ class _HomePageState extends State<HomePage>
   void _initializePages(bool isAdmin) {
     // 创建页面实例 - 使用GlobalKey保存状态
     final basePages = [
-      {'title': 'Work', 'page':Work(key: _pageKeys[0],)},
+      {'title': 'Work', 'page':WorkList(key: _pageKeys[0],)},
       {'title':'质检','page':ReviewList(key: _pageKeys[1])}
     ];
 
     // 只有管理员才添加管理页面
     if (isAdmin) {
-      basePages.add({'title': '账号管理', 'page': ManagementPage(key: _pageKeys[0])});
+      basePages.add({'title': '账号管理', 'page': ManagementPage(key: _pageKeys[2])});
+      basePages.add({'title':'任务管理','page':WorkManager(key: _pageKeys[3])});
     }
 
     // 更新页面和标题列表

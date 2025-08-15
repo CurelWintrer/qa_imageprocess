@@ -106,78 +106,78 @@ class _WorkState extends State<Work> {
 
   // 查询图片的方法
   Future<void> _fetchImages() async {
-  setState(() {
-    _isLoading = true;
-  });
-
-  try {
-    final categoryName = _categories.firstWhere(
-      (item) => item['id'] == _selectedCategoryId,
-      orElse: () => {},
-    )['name'];
-    final collectorTypeName = _collectorTypes.firstWhere(
-      (item) => item['id'] == _selectedCollectorTypeId,
-      orElse: () => {},
-    )['name'];
-    final questionDirectionName = _questionDirections.firstWhere(
-      (item) => item['id'] == _selectedQuestionDirectionId,
-      orElse: () => {},
-    )['name'];
-
-    final endpoint =
-        '/api/image/my?page=$_currentPage&pageSize=$_pageSize'
-        '${categoryName != null ? '&category=$categoryName' : ''}'
-        '${collectorTypeName != null ? '&collector_type=$collectorTypeName' : ''}'
-        '${questionDirectionName != null ? '&question_direction=$questionDirectionName' : ''}';
-
-    final response = await http.get(
-      Uri.parse('${UserSession().baseUrl}$endpoint'),
-      headers: {'Authorization': 'Bearer ${UserSession().token ?? ''}'},
-    );
-
-    print('API Response: ${response.body}'); // 添加详细日志
-
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      
-      // 根据响应结构解析数据
-      final responseData = data['data'] as Map<String, dynamic>?;
-      if (responseData == null) {
-        throw Exception('Invalid API response: missing data field');
-      }
-      
-      final innerData = responseData['data'] as Map<String, dynamic>?;
-      if (innerData == null) {
-        throw Exception('Invalid API response: missing inner data field');
-      }
-      
-      final imagesData = innerData['images'] as List<dynamic>?;
-      final pagination = innerData['pagination'] as Map<String, dynamic>?;
-
-      if (imagesData != null && pagination != null) {
-        setState(() {
-          _images = imagesData
-              .map<ImageModel>((item) => ImageModel.fromJson(item))
-              .toList();
-          _totalItems = pagination['total'] as int;
-        });
-      } else {
-        throw Exception('Invalid API response structure');
-      }
-    } else {
-      throw Exception('Failed to load images: ${response.statusCode}');
-    }
-  } catch (e) {
-    print('Error fetching images: $e');
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('加载图片失败: $e')),
-    );
-  } finally {
     setState(() {
-      _isLoading = false;
+      _isLoading = true;
     });
+
+    try {
+      final categoryName = _categories.firstWhere(
+        (item) => item['id'] == _selectedCategoryId,
+        orElse: () => {},
+      )['name'];
+      final collectorTypeName = _collectorTypes.firstWhere(
+        (item) => item['id'] == _selectedCollectorTypeId,
+        orElse: () => {},
+      )['name'];
+      final questionDirectionName = _questionDirections.firstWhere(
+        (item) => item['id'] == _selectedQuestionDirectionId,
+        orElse: () => {},
+      )['name'];
+
+      final endpoint =
+          '/api/image/my?page=$_currentPage&pageSize=$_pageSize'
+          '${categoryName != null ? '&category=$categoryName' : ''}'
+          '${collectorTypeName != null ? '&collector_type=$collectorTypeName' : ''}'
+          '${questionDirectionName != null ? '&question_direction=$questionDirectionName' : ''}';
+
+      final response = await http.get(
+        Uri.parse('${UserSession().baseUrl}$endpoint'),
+        headers: {'Authorization': 'Bearer ${UserSession().token ?? ''}'},
+      );
+
+      // print('API Response: ${response.body}'); // 添加详细日志
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+
+        // 根据响应结构解析数据
+        final responseData = data['data'] as Map<String, dynamic>?;
+        if (responseData == null) {
+          throw Exception('Invalid API response: missing data field');
+        }
+
+        final innerData = responseData['data'] as Map<String, dynamic>?;
+        if (innerData == null) {
+          throw Exception('Invalid API response: missing inner data field');
+        }
+
+        final imagesData = innerData['images'] as List<dynamic>?;
+        final pagination = innerData['pagination'] as Map<String, dynamic>?;
+
+        if (imagesData != null && pagination != null) {
+          setState(() {
+            _images = imagesData
+                .map<ImageModel>((item) => ImageModel.fromJson(item))
+                .toList();
+            _totalItems = pagination['total'] as int;
+          });
+        } else {
+          throw Exception('Invalid API response structure');
+        }
+      } else {
+        throw Exception('Failed to load images: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error fetching images: $e');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('加载图片失败: $e')));
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
-}
 
   // 通用API请求方法
   Future<List<dynamic>> _fetchData(String endpoint) async {
@@ -339,6 +339,7 @@ class _WorkState extends State<Work> {
             },
             enabled: _selectedCollectorTypeId != null,
           ),
+
 
           // 查询按钮
           ElevatedButton(

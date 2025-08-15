@@ -1,13 +1,12 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 
-
 class ImageState {
-  static const ToBeChecked=0;   //未检查
-  static const Checking=1;      //正在检查
-  static const UnderReview=2;   //正在审核
-  static const Approved=3;      //审核通过
-  static const Abandoned=4;     //废弃
+  static const ToBeChecked = 0; //未检查
+  static const Checking = 1; //正在检查
+  static const UnderReview = 2; //正在审核
+  static const Approved = 3; //审核通过
+  static const Abandoned = 4; //废弃
   static String getStateText(int? state) {
     switch (state) {
       case 0:
@@ -42,6 +41,29 @@ class ImageState {
     }
   }
 
+  static String getDifficulty(int difficulty) {
+    switch (difficulty) {
+      case 0:
+        return '简单';
+      case 1:
+        return '中等';
+      case 2:
+        return '困难';
+      default:
+        return '未知';
+    }
+  }
 
-
+  static int getDifficultyValue(String difficulty) {
+    switch (difficulty) {
+      case '简单':
+        return 0;
+      case '中等':
+        return 1;
+      case '困难':
+        return 2;
+      default:
+        return -1;
+    }
+  }
 }
