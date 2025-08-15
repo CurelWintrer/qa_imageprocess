@@ -48,9 +48,8 @@ class _WorkManagerState extends State<WorkManager> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('任务管理')),
-      body: SingleChildScrollView(
-        child: Column(children: [_buildTitleSelector(), _buildWorkList()]),
+      body: Column(
+        children: [_buildTitleSelector(), _buildWorkList()]
       ),
     );
   }

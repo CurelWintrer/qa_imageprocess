@@ -2,7 +2,6 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:qa_imageprocess/model/user.dart';
-import 'package:qa_imageprocess/pages/management_page.dart';
 
 class WorkModel {
   final int workID;
@@ -43,22 +42,22 @@ class WorkModel {
 
   factory WorkModel.fromJson(Map<String, dynamic> json) {
     return WorkModel(
-      workID: json['workID'] as int,
-      adminID: json['adminID'] as int,
-      workerID: json['workerID'] as int,
-      category: json['category'] as String,
-      collectorType: json['collector_type'] as String,
-      questionDirection: json['question_direction'] as String,
-      difficulty: json['difficulty'] as int,
-      state: json['state'] as int,
+      workID: json['workID'] as int? ?? 0,
+      adminID: json['adminID'] as int? ?? 0,
+      workerID: json['workerID'] as int? ?? 0,
+      category: json['category'] as String? ?? '',
+      collectorType: json['collector_type'] as String? ?? '',
+      questionDirection: json['question_direction'] as String? ?? '',
+      difficulty: json['difficulty'] as int? ?? 0,
+      state: json['state'] as int? ?? 0,
       returnReason: json['returnReason'] as String?,
       remark: json['remark'] as String?,
-      targetCount: json['targetCount'] as int,
-      currentCount: json['currentCount'] as int,
-      admin: User.fromJson(json['admin'] as Map<String, dynamic>),
-      worker: User.fromJson(json['worker'] as Map<String, dynamic>),
-      created_at: json['created_at'],
-      updated_at: json['updated_at'],
+      targetCount: json['targetCount'] as int? ?? 0,
+      currentCount: json['currentCount'] as int? ?? 0,
+      admin: User.fromJson(json['admin'] as Map<String, dynamic>? ?? {}),
+      worker: User.fromJson(json['worker'] as Map<String, dynamic>? ?? {}),
+      created_at: json['created_at'] ?? '',
+      updated_at: json['updated_at'] ?? '',
     );
   }
   //0：未采集，1：正在采集，2：采集完成，3：等待质检，4：正在质检，5：质检打回，6：质检通过，7：等待交付，8：交付完成
