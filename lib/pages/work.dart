@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:qa_imageprocess/MyWidget/image_detail.dart';
 import 'package:qa_imageprocess/model/image_model.dart';
 import 'package:qa_imageprocess/model/image_state.dart';
 import 'package:qa_imageprocess/model/question_model.dart';
@@ -110,17 +111,44 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
     }
   }
 
+  // 处理图片更新回调
+  void _handleImageUpdated(ImageModel updatedImage) {
+    setState(() {
+      // 找到并更新图片列表中的对应图片
+      final index = _images.indexWhere(
+        (img) => img.imageID == updatedImage.imageID,
+      );
+      if (index != -1) {
+        _images[index] = updatedImage;
+      }
+    });
+  }
+
+
+
+  // 打开图片详情弹窗
+  void _openImageDetail(ImageModel image) {
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    useSafeArea: true,
+    builder: (context) {
+      return Dialog(
+        insetPadding: const EdgeInsets.all(20),
+        child: ImageDetail(
+          image: image,
+          onImageUpdated: _handleImageUpdated,
+          onClose: () => Navigator.pop(context),
+        ),
+      );
+    },
+  );
+}
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('工作详情 #${widget.workID}'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.grid_view),
-            onPressed: _toggleColumnCount,
-            tooltip: '切换列数',
-          ),
+      appBar: AppBar(title: Text('工作详情 #${widget.workID}'), actions: [
         ],
       ),
       body: _buildBody(),
@@ -184,7 +212,10 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
                 if (index == _images.length) {
                   return _buildLoadMoreIndicator();
                 }
-                return _buildGridItem(_images[index]);
+                return GestureDetector(
+                  onTap: () => _openImageDetail(_images[index]),
+                  child: _buildGridItem(_images[index]),
+                );
               },
             ),
           ),
@@ -247,7 +278,7 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
           Padding(
             padding: const EdgeInsets.all(8),
             child: Text(
-              '图片 #${image.imageID}',
+              '#${image.imageID}',
               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
             ),
           ),
