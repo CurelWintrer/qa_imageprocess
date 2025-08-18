@@ -45,28 +45,34 @@ class UserDetailWidget extends StatelessWidget {
           children: [
             // 用户基本信息
             _buildUserInfoSection(context),
-            
+
             const SizedBox(height: 30),
-            
+
             // 任务参数部分
             _buildTaskParametersSection(context),
-            
+
             const SizedBox(height: 30),
-            
+
             // 任务难度和数量部分
             _buildTaskOptionsSection(context),
-            
+
             const SizedBox(height: 40),
-            
+
             // 分配任务按钮
             Center(
               child: ElevatedButton(
                 onPressed: onAssignTask,
                 style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 40,
+                    vertical: 16,
+                  ),
                   backgroundColor: Theme.of(context).primaryColor,
                 ),
-                child: const Text('分配任务', style: TextStyle(fontSize: 18, color: Colors.white)),
+                child: const Text(
+                  '分配任务',
+                  style: TextStyle(fontSize: 18, color: Colors.white),
+                ),
               ),
             ),
           ],
@@ -90,8 +96,8 @@ class UserDetailWidget extends StatelessWidget {
                 Text(
                   user.name,
                   style: Theme.of(context).textTheme.headlineSmall!.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
@@ -137,10 +143,7 @@ class UserDetailWidget extends StatelessWidget {
               children: [
                 const Icon(Icons.task, size: 24, color: Colors.blue),
                 const SizedBox(width: 8),
-                Text(
-                  '任务参数配置',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
+                Text('任务参数配置', style: Theme.of(context).textTheme.titleLarge),
               ],
             ),
             const SizedBox(height: 16),
@@ -187,7 +190,8 @@ class UserDetailWidget extends StatelessWidget {
                 map[item['id']] = item['name'];
                 return map;
               }),
-              enabled: collectorTypes.isNotEmpty && selectedCollectorTypeId != null,
+              enabled:
+                  collectorTypes.isNotEmpty && selectedCollectorTypeId != null,
               onChanged: (value) {
                 final name = questionDirections.firstWhere(
                   (e) => e['id'] == value,
@@ -214,10 +218,7 @@ class UserDetailWidget extends StatelessWidget {
               children: [
                 const Icon(Icons.settings, size: 24, color: Colors.green),
                 const SizedBox(width: 8),
-                Text(
-                  '任务选项',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
+                Text('任务选项', style: Theme.of(context).textTheme.titleLarge),
               ],
             ),
             const SizedBox(height: 16),
@@ -231,11 +232,7 @@ class UserDetailWidget extends StatelessWidget {
   }
 
   Widget _buildDifficultyDropdown() {
-    final difficultyOptions = {
-      1: '简单',
-      2: '中等',
-      3: '困难',
-    };
+    final difficultyOptions = {0: '简单', 1: '中等', 2: '困难'};
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

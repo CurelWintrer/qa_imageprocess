@@ -110,4 +110,17 @@ class WorkModel {
         return Colors.black;
     }
   }
+
+    static String getDifficulty(int difficulty) {
+    switch (difficulty) {
+      case 0:
+        return '简单';
+      case 1:
+        return '中等';
+      case 2:
+        return '困难';
+      default:
+        return '未知';
+    }
+  }
 }
