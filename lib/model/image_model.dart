@@ -15,7 +15,6 @@ class ImageModel {
   final String created_at;
   final String updated_at;
   final int originatorID;
-  final int? checkImageListID;
   final Originator originator;
   final int? workID;
 
@@ -32,7 +31,6 @@ class ImageModel {
     required this.created_at,
     required this.updated_at,
     required this.originatorID,
-    this.checkImageListID,
     required this.originator,
     this.workID,
   });
@@ -60,8 +58,7 @@ class ImageModel {
     created_at: json['created_at'] as String? ?? '',
     updated_at: json['updated_at'] as String? ?? '',
     originatorID: (json['originator'] as Map<String, dynamic>?)?['id'] as int? ?? 0,
-    checkImageListID: json['check_image_list_id'] as int?,
-    workID: json['workID'],
+    workID: json['workID'] as int?,
     originator: Originator.fromJson(
       json['originator'] as Map<String, dynamic>? ?? {},
     ),
@@ -98,7 +95,6 @@ class ImageModel {
       created_at: created_at ?? this.created_at,
       updated_at: updated_at ?? this.updated_at,
       originatorID: originatorID ?? this.originatorID,
-      checkImageListID: checkImageListID ?? this.checkImageListID,
       workID: workID ?? this.workID,
       originator: originator ?? this.originator,
     );
@@ -121,7 +117,6 @@ class ImageModel {
       'created_at': created_at,
       'updated_at': updated_at,
       'originator_id': originatorID,
-      'check_image_list_id': checkImageListID,
       'workID':workID,
       'originator': originator.toJson(),
       'questions': questionsJson, // 添加 questions 到 JSON 中

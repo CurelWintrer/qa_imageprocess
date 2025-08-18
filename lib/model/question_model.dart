@@ -22,7 +22,7 @@ class QuestionModel {
       json['rightAnswer'] as Map<String, dynamic>? ?? {},
     ),
     answers: (json['answers'] as List<dynamic>?)
-        ?.map((answerJson) => AnswerModel.fromJson(answerJson))
+        ?.map((answerJson) => AnswerModel.fromJson(answerJson as Map<String, dynamic>? ?? {}))
         .toList() ?? [],
   );
 }

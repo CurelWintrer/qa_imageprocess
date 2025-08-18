@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:qa_imageprocess/model/image_model.dart';
+import 'package:qa_imageprocess/model/image_state.dart';
 import 'package:qa_imageprocess/model/question_model.dart';
 import 'package:qa_imageprocess/user_session.dart';
 
@@ -26,56 +29,254 @@ class ImageDetail extends StatefulWidget {
 
 class _ImageDetailState extends State<ImageDetail> {
   late ImageModel currentImage;
-  Size? _imageSize;
   bool _isProcessing = false;
+  bool _isEditing = false; // 新增：编辑状态标志
+  late List<TextEditingController> _answerControllers; // 答案文本控制器
+  late TextEditingController _questionController; // 题目文本控制器
+  late int _selectedCorrectIndex; // 选择的正确答案索引
 
   @override
   void initState() {
     super.initState();
     currentImage = widget.image;
-    _getImageSize();
+    _initEditControllers(); // 初始化控制器
   }
 
-  Future<void> _getImageSize() async {
+  // 初始化编辑控制器
+  void _initEditControllers() {
+    // 检查当前图片是否有问题数据
+    final question = currentImage.questions != null && currentImage.questions!.isNotEmpty
+        ? currentImage.questions!.first
+        : null;
+
+    // 初始化题目控制器
+    _questionController = TextEditingController(
+        text: question?.questionText ?? '');
+    
+    // 初始化答案控制器
+    _answerControllers = [];
+    if (question != null && question.answers.isNotEmpty) {
+      for (var answer in question.answers) {
+        _answerControllers.add(TextEditingController(text: answer.answerText));
+      }
+      // 设置当前正确答案索引
+      final correctAnswerId = question.rightAnswer.answerID;
+      _selectedCorrectIndex = question.answers.indexWhere(
+          (a) => a.answerID == correctAnswerId);
+      if (_selectedCorrectIndex == -1) _selectedCorrectIndex = 0;
+    } else {
+      // 默认添加两个空答案
+      _answerControllers = [TextEditingController(), TextEditingController()];
+      _selectedCorrectIndex = 0;
+    }
+  }
+
+  // 开始编辑
+  void _startEditing() {
+    setState(() {
+      _isEditing = true;
+    });
+  }
+
+  // 取消编辑
+  void _cancelEditing() {
+    // 重置为原始状态
+    _initEditControllers();
+    setState(() {
+      _isEditing = false;
+    });
+  }
+
+  // 添加答案选项
+  void _addAnswer() {
+    setState(() {
+      _answerControllers.add(TextEditingController());
+    });
+  }
+
+  // 移除答案选项
+  void _removeAnswer(int index) {
+    if (_answerControllers.length > 1) {
+      setState(() {
+        // 处理被删除的是正确答案的情况
+        if (index == _selectedCorrectIndex) {
+          _selectedCorrectIndex = 0;
+        } 
+        // 处理删除后索引改变的情况
+        else if (index < _selectedCorrectIndex) {
+          _selectedCorrectIndex--;
+        }
+        
+        final controller = _answerControllers.removeAt(index);
+        controller.dispose();
+      });
+    }
+  }
+
+   // 提交编辑
+  Future<void> _submitEdit() async {
+    // 收集数据
+    final questionText = _questionController.text.trim();
+    if (questionText.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请输入问题内容')),
+      );
+      return;
+    }
+    
+    final answers = <String>[];
+    for (var controller in _answerControllers) {
+      final text = controller.text.trim();
+      if (text.isNotEmpty) {
+        answers.add(text);
+      }
+    }
+    
+    if (answers.length < 2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('至少需要两个有效答案')),
+      );
+      return;
+    }
+    
+    if (_selectedCorrectIndex >= answers.length) {
+      _selectedCorrectIndex = 0;
+    }
+
+    // 显示处理中
+    setState(() => _isProcessing = true);
+    
     try {
-      final imageUrl = '${UserSession().baseUrl}/img/${currentImage.path}';
-      final ImageProvider imageProvider = NetworkImage(imageUrl);
-      final Completer<Size> completer = Completer();
+      // 调用API更新
+      final updatedImage = await _updateImageQA(
+        imageId: currentImage.imageID,
+        questionText: questionText,
+        answers: answers,
+        rightAnswerIndex: _selectedCorrectIndex,
+      );
 
-      imageProvider
-          .resolve(createLocalImageConfiguration(context))
-          .addListener(
-            ImageStreamListener(
-              (ImageInfo info, bool _) {
-                if (!completer.isCompleted) {
-                  completer.complete(
-                    Size(
-                      info.image.width.toDouble(),
-                      info.image.height.toDouble(),
-                    ),
-                  );
-                }
-              },
-              onError: (exception, StackTrace? stackTrace) {
-                if (!completer.isCompleted) {
-                  completer.complete(const Size(0, 0));
-                }
-              },
-            ),
-          );
-
-      final size = await completer.future;
-      if (size != null && mounted) {
-        setState(() => _imageSize = size);
+      if (updatedImage != null) {
+        // 更新状态
+        setState(() {
+          currentImage = updatedImage;
+          _isEditing = false;
+        });
+        
+        // 通知父组件
+        widget.onImageUpdated(updatedImage);
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('题目更新成功')),
+        );
       }
     } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('更新失败: $e')),
+      );
+    } finally {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('获取图片尺寸失败: $e')));
+        setState(() => _isProcessing = false);
       }
     }
   }
+
+   // 构建编辑界面
+  Widget _buildEditForm() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 题目编辑区域
+        TextField(
+          controller: _questionController,
+          decoration: InputDecoration(
+            labelText: '题目内容',
+            border: const OutlineInputBorder(),
+            suffixIcon: IconButton(
+              icon: const Icon(Icons.clear),
+              onPressed: () => _questionController.clear(),
+            ),
+          ),
+          maxLines: 3,
+        ),
+        const SizedBox(height: 20),
+        
+        // 答案编辑区域
+        const Text(
+          '答案选项:',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 10),
+        
+        // 答案列表
+        ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: _answerControllers.length,
+          itemBuilder: (context, index) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                children: [
+                  // 单选按钮
+                  Radio<int>(
+                    value: index,
+                    groupValue: _selectedCorrectIndex,
+                    onChanged: (value) => setState(() => _selectedCorrectIndex = value!),
+                  ),
+                  
+                  // 答案输入框
+                  Expanded(
+                    child: TextField(
+                      controller: _answerControllers[index],
+                      decoration: InputDecoration(
+                        hintText: '答案选项 ${String.fromCharCode(65 + index)}',
+                        border: const OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  
+                  // 删除按钮
+                  if (_answerControllers.length > 1)
+                    IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      onPressed: () => _removeAnswer(index),
+                    ),
+                ],
+              ),
+            );
+          },
+        ),
+        
+        // 添加答案按钮
+        OutlinedButton.icon(
+          icon: const Icon(Icons.add),
+          label: const Text('添加答案'),
+          onPressed: _addAnswer,
+        ),
+        const SizedBox(height: 20),
+        
+        // 操作按钮
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            TextButton(
+              onPressed: _cancelEditing,
+              child: const Text('取消'),
+            ),
+            const SizedBox(width: 16),
+            ElevatedButton(
+              onPressed: _isProcessing ? null : _submitEdit,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+              ),
+              child: const Text('提交更新'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
 
   // 构建问题和答案展示组件
   Widget _buildQuestionAnswer(QuestionModel question) {
@@ -232,26 +433,6 @@ class _ImageDetailState extends State<ImageDetail> {
     );
   }
 
-  // 构建操作按钮
-  Widget _buildActionButton(
-    String tooltip,
-    IconData icon,
-    VoidCallback onPressed, {
-    Color? color,
-  }) {
-    return Tooltip(
-      message: tooltip,
-      child: IconButton(
-        icon: Icon(icon, size: 24, color: color),
-        onPressed: onPressed,
-        style: IconButton.styleFrom(
-          backgroundColor: Colors.grey[50],
-          padding: const EdgeInsets.all(12),
-        ),
-      ),
-    );
-  }
-
   // 执行AI操作（耗时任务）
   Future<void> _executeAITask() async {
     setState(() => _isProcessing = true);
@@ -303,45 +484,6 @@ class _ImageDetailState extends State<ImageDetail> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      // 分辨率显示
-                      if (_imageSize != null)
-                        Chip(
-                          label: Text(
-                            '${_imageSize!.width.toInt()}×${_imageSize!.height.toInt()}',
-                            style: TextStyle(
-                              color:
-                                  (_imageSize!.width < 720 ||
-                                      _imageSize!.height < 720)
-                                  ? Colors.red
-                                  : Colors.green,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          backgroundColor: Colors.grey[50],
-                        ),
-
-                      const Spacer(),
-
-                      // 状态指示器
-                      if (_isProcessing) ...[
-                        const SizedBox(width: 8),
-                        const CircularProgressIndicator(),
-                        const SizedBox(width: 8),
-                        Text(
-                          '处理中...',
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.secondary,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-
-                  const SizedBox(height: 16),
-
                   // 基本信息
                   _buildInfoItem('文件名', currentImage.fileName ?? '未命名'),
                   _buildInfoItem('分类', currentImage.category),
@@ -353,57 +495,49 @@ class _ImageDetailState extends State<ImageDetail> {
                   ),
                   _buildInfoItem(
                     '状态',
-                    currentImage.state == 0
-                        ? '待处理'
-                        : currentImage.state == 1
-                        ? '已处理'
-                        : '已发布',
+                    ImageState.getStateText(currentImage.state),
                   ),
                   _buildInfoItem('创建日期', currentImage.created_at),
                   _buildInfoItem('更新日期', currentImage.updated_at),
-
-                  const SizedBox(height: 16),
-
-                  // 操作按钮区域
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      _buildActionButton(
-                        'AI处理',
-                        Icons.auto_awesome,
-                        _executeAITask,
-                      ),
-                      _buildActionButton(
-                        '复制信息',
-                        Icons.content_copy,
-                        () => ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('图片信息已复制')),
-                        ),
-                      ),
-                      _buildActionButton('更多操作', Icons.more_vert, () {}),
-                    ],
-                  ),
                 ],
               ),
             ),
           ),
 
           // 问题和答案区域
-          if (currentImage.questions != null &&
-              currentImage.questions!.isNotEmpty)
+          // if (currentImage.questions != null &&
+          //     currentImage.questions!.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 16),
               child: Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  side: BorderSide(color: Colors.grey.shade300, width: 1),
-                ),
+                // ... 样式不变 ...
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          // AI-QA按钮
+                          IconButton(
+                            onPressed: _isProcessing ? null : _executeAITask,
+                            icon: const Icon(Icons.auto_awesome),
+                            tooltip: 'AI-QA',
+                          ),
+                          const SizedBox(width: 20),
+                          
+                          // 编辑按钮
+                          if (!_isEditing) // 仅非编辑模式显示
+                            IconButton(
+                              onPressed: _startEditing,
+                              icon: const Icon(Icons.edit),
+                              tooltip: '手动修改',
+                            ),
+                        ],
+                      ),
+                      
+                      // 标题
                       const Text(
                         '题目内容',
                         style: TextStyle(
@@ -413,11 +547,15 @@ class _ImageDetailState extends State<ImageDetail> {
                         ),
                       ),
                       const SizedBox(height: 12),
-
-                      // 遍历所有问题
-                      ...currentImage.questions!
-                          .map(_buildQuestionAnswer)
-                          .toList(),
+                      
+                      // 切换编辑模式
+                      if (_isEditing)
+                        _buildEditForm()
+                      else
+                        // 原有问题和答案展示
+                        ...currentImage.questions!
+                            .map(_buildQuestionAnswer)
+                            .toList(),
                     ],
                   ),
                 ),
@@ -511,5 +649,48 @@ class _ImageDetailState extends State<ImageDetail> {
         ),
       ),
     );
+  }
+
+
+
+  // 添加API更新方法
+  Future<ImageModel?> _updateImageQA({
+    required int imageId,
+    required String questionText,
+    required List<String> answers,
+    required int rightAnswerIndex,
+  }) async {
+    final url = '${UserSession().baseUrl}/api/image/$imageId/qa';
+    final headers = {'Content-Type': 'application/json','Authorization': 'Bearer ${UserSession().token ?? ''}'};
+    final body = jsonEncode({
+      'difficulty': currentImage.difficulty ?? 0,
+      'questionText': questionText,
+      'answers': answers,
+      'rightAnswerIndex': rightAnswerIndex,
+    });
+
+    try {
+      final response = await http.put(
+        Uri.parse(url),
+        headers: headers,
+        body: body,
+      );
+
+      print(response.body);
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        return ImageModel.fromJson(responseData['data']);
+      } else {
+        throw Exception('更新失败: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('更新失败: $e')));
+      }
+      return null;
+    }
   }
 }
