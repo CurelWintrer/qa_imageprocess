@@ -139,17 +139,7 @@ class _WorkListState extends State<WorkList> {
 
         // 更新状态计数
         // 创建新的状态计数Map，初始化为0
-        final newStatusCounts = {
-          0: 0, // 未采集
-          1: 0, // 正在采集
-          2: 0, // 采集完成
-          3: 0, // 等待质检
-          4: 0, // 正在质检
-          5: 0, // 质检打回
-          6: 0, // 质检通过
-          7: 0, // 等待交付
-          8: 0, // 交付完成
-        };
+        final newStatusCounts = Map<int, int>.from(_statusCounts);
         final newWorks = (workData['works'] as List)
             .map((workJson) => WorkModel.fromJson(workJson))
             .toList();
@@ -517,8 +507,6 @@ class _WorkListState extends State<WorkList> {
   // 查看任务详情（占位函数）
   void _viewWorkDetails(WorkModel work) {
     // TODO: 实现查看任务详情功能
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('查看任务 ${work.workID} 详情')));
+    Navigator.pushNamed(context, '/workDetail',arguments: {'workID':work.workID});
   }
 }

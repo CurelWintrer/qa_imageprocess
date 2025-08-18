@@ -1,177 +1,100 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:qa_imageprocess/MyWidget/image_detail.dart';
 import 'package:qa_imageprocess/model/image_model.dart';
+import 'package:qa_imageprocess/model/image_state.dart';
+import 'package:qa_imageprocess/model/question_model.dart';
+import 'package:qa_imageprocess/model/work_model.dart';
 import 'package:qa_imageprocess/user_session.dart';
 
-class Work extends StatefulWidget {
-  const Work({super.key});
+class WorkDetailScreen extends StatefulWidget {
+  final int workID;
+
+  const WorkDetailScreen({super.key, required this.workID});
 
   @override
-  State<Work> createState() => _WorkState();
+  State<WorkDetailScreen> createState() => _WorkDetailScreenState();
 }
 
-class _WorkState extends State<Work> {
-  // 类目相关状态
-  List<Map<String, dynamic>> _categories = [];
-  String? _selectedCategoryId;
-
-  // 采集类型相关状态
-  List<Map<String, dynamic>> _collectorTypes = [];
-  String? _selectedCollectorTypeId;
-
-  // 问题方向相关状态
-  List<Map<String, dynamic>> _questionDirections = [];
-  String? _selectedQuestionDirectionId;
-
-  // 添加必要的状态变量
-  int _currentPage = 1;
-  int _pageSize = 20;
-  int _totalItems = 0;
+class _WorkDetailScreenState extends State<WorkDetailScreen> {
+  WorkModel? _work;
   List<ImageModel> _images = [];
+  int _currentPage = 1;
+  int _totalPages = 1;
   bool _isLoading = false;
-
-  ImageModel? _selectedImage;
+  bool _hasMore = true;
+  String _errorMessage = '';
+  int _columnCount = 4; // 默认4列
 
   @override
   void initState() {
     super.initState();
-    _fetchCategories(); // 初始化时获取类目
+    _fetchWorkDetails();
   }
 
-  // 新增: 显示图片详情弹窗的方法
-  void _showImageDetailDialog(ImageModel image) {
+  // 列数切换方法
+  void _toggleColumnCount() {
     setState(() {
-      _selectedImage = image;
-    });
-    showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (context) => ImageDetail(
-        image: image,
-        onImageUpdated: (updatedImage) {
-          // 更新图片列表中的数据
-          _updateImageInList(updatedImage);
-        },
-        onLongRunningTask: (task) => _handleBackgroundTask(task, image.imageID),
-      ),
-    ).then((_) {
-      setState(() {
-        _selectedImage = null;
-      });
+      _columnCount = _columnCount >= 8 ? 4 : _columnCount + 1;
     });
   }
 
-  // 新增: 更新列表中指定的图片
-  void _updateImageInList(ImageModel updatedImage) {
-    setState(() {
-      final index = _images.indexWhere(
-        (img) => img.imageID == updatedImage.imageID,
-      );
-      if (index != -1) {
-        _images[index] = updatedImage;
-      }
-    });
-  }
+  Future<void> _fetchWorkDetails() async {
+    if (_isLoading) return;
 
-  // 新增: 处理后台任务
-  Future<void> _handleBackgroundTask(
-    Future<ImageModel> Function() task,
-    int imageId,
-  ) async {
-    // 显示任务开始提示
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text("后台任务开始执行...")));
-
-    try {
-      // 执行后台任务
-      final updatedImage = await task();
-
-      // 更新图片列表中的数据
-      _updateImageInList(updatedImage);
-
-      // 显示任务完成提示
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("后台任务已完成!")));
-    } catch (e) {
-      // 显示错误提示
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("后台任务出错: ${e.toString()}")));
-    }
-  }
-
-  // 查询图片的方法
-  Future<void> _fetchImages() async {
     setState(() {
       _isLoading = true;
+      _errorMessage = '';
     });
 
     try {
-      final categoryName = _categories.firstWhere(
-        (item) => item['id'] == _selectedCategoryId,
-        orElse: () => {},
-      )['name'];
-      final collectorTypeName = _collectorTypes.firstWhere(
-        (item) => item['id'] == _selectedCollectorTypeId,
-        orElse: () => {},
-      )['name'];
-      final questionDirectionName = _questionDirections.firstWhere(
-        (item) => item['id'] == _selectedQuestionDirectionId,
-        orElse: () => {},
-      )['name'];
-
-      final endpoint =
-          '/api/image/my?page=$_currentPage&pageSize=$_pageSize'
-          '${categoryName != null ? '&category=$categoryName' : ''}'
-          '${collectorTypeName != null ? '&collector_type=$collectorTypeName' : ''}'
-          '${questionDirectionName != null ? '&question_direction=$questionDirectionName' : ''}';
-
-      final response = await http.get(
-        Uri.parse('${UserSession().baseUrl}$endpoint'),
-        headers: {'Authorization': 'Bearer ${UserSession().token ?? ''}'},
+      final url = Uri.parse(
+        '${UserSession().baseUrl}/api/works/${widget.workID}/details?page=$_currentPage&limit=10',
       );
 
-      // print('API Response: ${response.body}'); // 添加详细日志
+      final headers = {
+        'Authorization': 'Bearer ${UserSession().token}',
+        'Content-Type': 'application/json',
+      };
+
+      final response = await http.get(url, headers: headers);
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
 
-        // 根据响应结构解析数据
-        final responseData = data['data'] as Map<String, dynamic>?;
-        if (responseData == null) {
-          throw Exception('Invalid API response: missing data field');
-        }
+        if (data['code'] == 200) {
+          final workData = data['data'];
 
-        final innerData = responseData['data'] as Map<String, dynamic>?;
-        if (innerData == null) {
-          throw Exception('Invalid API response: missing inner data field');
-        }
-
-        final imagesData = innerData['images'] as List<dynamic>?;
-        final pagination = innerData['pagination'] as Map<String, dynamic>?;
-
-        if (imagesData != null && pagination != null) {
           setState(() {
-            _images = imagesData
-                .map<ImageModel>((item) => ImageModel.fromJson(item))
+            // 解析工作信息
+            _work = WorkModel.fromJson(workData['work']);
+
+            // 解析图片列表
+            final imageData = workData['images'];
+            final pagination = imageData['pagination'];
+
+            _currentPage = pagination['currentPage'];
+            _totalPages = pagination['totalPages'];
+
+            final newImages = (imageData['data'] as List)
+                .map((imgJson) => ImageModel.fromJson(imgJson))
                 .toList();
-            _totalItems = pagination['total'] as int;
+
+            // 新增分页加载，追加图片
+            _images.addAll(newImages);
+            _hasMore = _currentPage < _totalPages;
           });
         } else {
-          throw Exception('Invalid API response structure');
+          throw Exception('API错误: ${data['message']}');
         }
       } else {
-        throw Exception('Failed to load images: ${response.statusCode}');
+        throw Exception('HTTP错误: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error fetching images: $e');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('加载图片失败: $e')));
+      setState(() {
+        _errorMessage = '加载数据失败: $e';
+      });
     } finally {
       setState(() {
         _isLoading = false;
@@ -179,397 +102,265 @@ class _WorkState extends State<Work> {
     }
   }
 
-  // 通用API请求方法
-  Future<List<dynamic>> _fetchData(String endpoint) async {
-    final response = await http.get(
-      Uri.parse('${UserSession().baseUrl}$endpoint'),
-      headers: {'Authorization': 'Bearer ${UserSession().token ?? ''}'},
-    );
-
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      return data['data'] as List<dynamic>;
-    } else {
-      throw Exception('Failed to load data from $endpoint');
-    }
-  }
-
-  // 获取所有类目
-  Future<void> _fetchCategories() async {
-    try {
-      final categories = await _fetchData('/api/category/');
-      setState(() {
-        _categories = categories.map<Map<String, dynamic>>((item) {
-          return {
-            'id': item['categoryID'].toString(),
-            'name': item['categoryName'],
-          };
-        }).toList();
-      });
-    } catch (e) {
-      print('Error fetching categories: $e');
-    }
-  }
-
-  // 根据类目ID获取采集类型
-  Future<void> _fetchCollectorTypes(String? categoryId) async {
-    if (categoryId == null) {
-      setState(() {
-        _collectorTypes = [];
-        _selectedCollectorTypeId = null;
-        _questionDirections = [];
-        _selectedQuestionDirectionId = null;
-      });
-      return;
-    }
-
-    try {
-      final collectorTypes = await _fetchData(
-        '/api/category/$categoryId/collector-types',
-      );
-      setState(() {
-        _collectorTypes = collectorTypes.map<Map<String, dynamic>>((item) {
-          return {
-            'id': item['collectorTypeID'].toString(),
-            'name': item['collectorTypeName'],
-          };
-        }).toList();
-        _selectedCollectorTypeId = null;
-        _questionDirections = [];
-        _selectedQuestionDirectionId = null;
-      });
-    } catch (e) {
-      print('Error fetching collector types: $e');
-    }
-  }
-
-  // 根据采集类型ID获取问题方向
-  Future<void> _fetchQuestionDirections(String? collectorTypeId) async {
-    if (collectorTypeId == null) {
-      setState(() {
-        _questionDirections = [];
-        _selectedQuestionDirectionId = null;
-      });
-      return;
-    }
-
-    try {
-      final questionDirections = await _fetchData(
-        '/api/category/collector-types/$collectorTypeId/question-directions',
-      );
-      setState(() {
-        _questionDirections = questionDirections.map<Map<String, dynamic>>((
-          item,
-        ) {
-          return {
-            'id': item['questionDirectionID'].toString(),
-            'name': item['questionDirectionName'],
-          };
-        }).toList();
-        _selectedQuestionDirectionId = null;
-      });
-    } catch (e) {
-      print('Error fetching question directions: $e');
+  // 加载更多图片
+  void _loadMoreImages() {
+    if (_hasMore && !_isLoading) {
+      _currentPage++;
+      _fetchWorkDetails();
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
-        children: [
-          _buildTitleSelector(),
-          Expanded(child: _buildImageGrid()),
+      appBar: AppBar(
+        title: Text('工作详情 #${widget.workID}'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.grid_view),
+            onPressed: _toggleColumnCount,
+            tooltip: '切换列数',
+          ),
         ],
+      ),
+      body: _buildBody(),
+      floatingActionButton: FloatingActionButton(
+        mini: true,
+        onPressed: _toggleColumnCount,
+        tooltip: '切换列数 ($_columnCount)',
+        child: Text('$_columnCount列'),
       ),
     );
   }
 
-  Widget _buildTitleSelector() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Wrap(
-        spacing: 16,
-        runSpacing: 16,
-        children: [
-          // 采集类目下拉框
-          _buildLevelDropdown(
-            value: _selectedCategoryId,
-            options: _categories.map((e) => e['id'] as String).toList(),
-            hint: '采集类目',
-            displayValues: _categories.fold({}, (map, item) {
-              map[item['id']] = item['name'];
-              return map;
-            }),
-            onChanged: (newValue) {
-              _selectedCategoryId = newValue;
-              _fetchCollectorTypes(newValue);
-            },
-          ),
-
-          // 采集类型下拉框
-          _buildLevelDropdown(
-            value: _selectedCollectorTypeId,
-            options: _collectorTypes.map((e) => e['id'] as String).toList(),
-            hint: '采集类型',
-            displayValues: _collectorTypes.fold({}, (map, item) {
-              map[item['id']] = item['name'];
-              return map;
-            }),
-            onChanged: (newValue) {
-              _selectedCollectorTypeId = newValue;
-              _fetchQuestionDirections(newValue);
-            },
-            enabled: _selectedCategoryId != null,
-          ),
-
-          // 问题方向下拉框
-          _buildLevelDropdown(
-            value: _selectedQuestionDirectionId,
-            options: _questionDirections.map((e) => e['id'] as String).toList(),
-            hint: '问题方向',
-            displayValues: _questionDirections.fold({}, (map, item) {
-              map[item['id']] = item['name'];
-              return map;
-            }),
-            onChanged: (newValue) {
-              setState(() {
-                _selectedQuestionDirectionId = newValue;
-              });
-            },
-            enabled: _selectedCollectorTypeId != null,
-          ),
-
-
-          // 查询按钮
-          ElevatedButton(
-            onPressed: () async {
-              _currentPage = 1;
-              await _fetchImages();
-            },
-            child: const Text('查询'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // 添加图片网格显示组件
-  Widget _buildImageGrid() {
-    if (_isLoading) {
+  Widget _buildBody() {
+    if (_isLoading && _images.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (_images.isEmpty) {
-      return const Center(
-        child: Text('暂无图片数据', style: TextStyle(fontSize: 18)),
+    if (_errorMessage.isNotEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(_errorMessage, style: const TextStyle(color: Colors.red)),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _fetchWorkDetails,
+              child: const Text('重新加载'),
+            ),
+          ],
+        ),
       );
     }
 
-    // 计算网格列数（响应式设计）
-    final width = MediaQuery.of(context).size.width;
-    int crossAxisCount = 1;
-    if (width > 1200) {
-      crossAxisCount = 4; // 大屏幕显示4列
-    } else if (width > 900) {
-      crossAxisCount = 3; // 中等屏幕显示3列
-    } else if (width > 600) {
-      crossAxisCount = 2; // 小屏幕显示2列
+    if (_work == null) {
+      return const Center(child: Text('加载工作信息失败'));
     }
 
     return Column(
       children: [
+        // 网格布局
         Expanded(
-          child: GridView.builder(
-            padding: const EdgeInsets.all(16),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: crossAxisCount,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-              childAspectRatio: 0.7, // 卡片宽高比
-            ),
-            itemCount: _images.length,
-            itemBuilder: (context, index) {
-              final image = _images[index];
-              return _buildImageCard(image);
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (ScrollNotification scrollInfo) {
+              // 滚动到底部加载更多
+              if (scrollInfo.metrics.pixels ==
+                  scrollInfo.metrics.maxScrollExtent) {
+                _loadMoreImages();
+              }
+              return true;
             },
+            child: GridView.builder(
+              padding: const EdgeInsets.all(8),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: _columnCount,
+                childAspectRatio: 0.8,
+                crossAxisSpacing: 8,
+                mainAxisSpacing: 8,
+              ),
+              itemCount: _images.length + (_hasMore ? 1 : 0),
+              itemBuilder: (context, index) {
+                if (index == _images.length) {
+                  return _buildLoadMoreIndicator();
+                }
+                return _buildGridItem(_images[index]);
+              },
+            ),
           ),
         ),
-        // 分页控件
-        _buildPaginationControls(),
       ],
     );
   }
 
-  // 构建图片卡片组件
-  Widget _buildImageCard(ImageModel image) {
-    final imageUrl = image.path != null
-        ? '${Uri.parse(UserSession().baseUrl).origin}/${image.path}'
+  // 网格项组件
+  Widget _buildGridItem(ImageModel image) {
+    final firstQuestion = image.questions?.isNotEmpty == true
+        ? image.questions?.first
         : null;
 
-    // 安全处理问题和答案
-    String questionText = '';
-    String answerText = '';
-
-    // 注意：image.questions 可能为null，所以使用 ?. 操作符
-    if (image.questions != null && image.questions!.isNotEmpty) {
-      final firstQuestion = image.questions!.first;
-      questionText = firstQuestion.questionText;
-
-      // 使用rightAnswer的answerText
-      answerText = firstQuestion.rightAnswer.answerText;
-    }
-
     return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => _showImageDetailDialog(image),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final cardHeight = constraints.maxHeight;
-              final imageHeight = 2 * cardHeight / 3;
+      elevation: 2,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 图片区域
+          Expanded(
+            flex: 3,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // 图片显示
+                image.path?.isNotEmpty == true
+                    ? CachedNetworkImage(
+                        imageUrl: '${UserSession().baseUrl}/${image.path}',
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Container(
+                          color: Colors.grey[200],
+                          child: const Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => Container(
+                          color: Colors.grey[200],
+                          child: const Center(child: Icon(Icons.error)),
+                        ),
+                      )
+                    : Container(
+                        color: Colors.grey[200],
+                        child: const Center(
+                          child: Icon(Icons.image_not_supported),
+                        ),
+                      ),
 
-              return Column(
+                // 图片状态标签（悬浮在右上角）
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: _buildImageStatusBadge(image.state),
+                ),
+              ],
+            ),
+          ),
+
+          // 图片信息
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: Text(
+              '图片 #${image.imageID}',
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            ),
+          ),
+
+          // 问题摘要（显示第一个问题）
+          if (firstQuestion != null) ...[
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (imageUrl != null)
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.network(
-                        imageUrl,
-                        width: double.infinity,
-                        height: imageHeight,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            height: imageHeight,
-                            color: Colors.grey[200],
-                            child: const Center(
-                              child: Icon(Icons.broken_image),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  const SizedBox(height: 5),
-                  if (questionText.isNotEmpty)
-                    Text(
-                      "问题: $questionText",
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  if (answerText.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 1),
-                      child: Text(
-                        "答案: $answerText",
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  const Spacer(),
-
-                  const SizedBox(height: 1),
-                  Row(
-                    children: [
-                      const Icon(Icons.person, size: 12),
-                      const SizedBox(width: 4),
-                      Text(
-                        image.originator.name,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey,
-                        ),
-                      ),
-                      const Spacer(),
-                      Text(
-                        DateTime.parse(image.created_at).toIso8601String(),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
+                  // 问题文本
+                  Text(
+                    firstQuestion.questionText,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 13),
                   ),
+
+                  const SizedBox(height: 6),
+
+                  // 答案选项显示
+                  _buildAnswerIndicators(firstQuestion),
                 ],
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
-
-  // 分页控件
-  Widget _buildPaginationControls() {
-    final totalPages = (_totalItems / _pageSize).ceil();
-
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: _currentPage > 1
-                ? () {
-                    setState(() {
-                      _currentPage--;
-                    });
-                    _fetchImages();
-                  }
-                : null,
-          ),
-          Text('$_currentPage / $totalPages'),
-          IconButton(
-            icon: const Icon(Icons.arrow_forward),
-            onPressed: _currentPage < totalPages
-                ? () {
-                    setState(() {
-                      _currentPage++;
-                    });
-                    _fetchImages();
-                  }
-                : null,
-          ),
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildLevelDropdown({
-    required String? value,
-    required List<String> options,
-    required String hint,
-    required Map<String, String> displayValues,
-    bool enabled = true,
-    ValueChanged<String?>? onChanged,
-  }) {
-    return Container(
-      width: 180,
-      child: DropdownButtonFormField<String>(
-        value: value,
-        isExpanded: true,
-        decoration: InputDecoration(
-          labelText: hint,
-          border: const OutlineInputBorder(),
-          enabled: enabled,
-        ),
-        items: options.map((id) {
-          return DropdownMenuItem<String>(
-            value: id,
-            child: Text(
-              displayValues[id] ?? '未知',
-              overflow: TextOverflow.ellipsis,
+  // 答案选项指示器
+  Widget _buildAnswerIndicators(QuestionModel question) {
+    // 找到正确答案
+    final rightAnswerId = question.rightAnswer.answerID;
+
+    return Wrap(
+      spacing: 4,
+      runSpacing: 4,
+      children: question.answers.asMap().entries.map((entry) {
+        final index = entry.key;
+        final answer = entry.value;
+        final isCorrect = answer.answerID == rightAnswerId;
+        final letter = String.fromCharCode(65 + index); // A, B, C...
+
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: isCorrect ? Colors.green[100] : Colors.grey[100],
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(
+              color: isCorrect
+                  ? Colors.green
+                  : Colors.grey.shade300, // 使用 .shade 确保非空
             ),
-          );
-        }).toList(),
-        onChanged: enabled ? onChanged : null,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '$letter.',
+                style: TextStyle(
+                  color: isCorrect ? Colors.green : Colors.black54,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(width: 2),
+              Text(
+                answer.answerText,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isCorrect ? Colors.green : Colors.black,
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  // 图片状态标签
+  Widget _buildImageStatusBadge(int state) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: ImageState.getStateColor(state).withOpacity(0.9),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: ImageState.getStateColor(state)),
+      ),
+      child: Text(
+        ImageState.getStateText(state),
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  // 加载更多指示器
+  Widget _buildLoadMoreIndicator() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: _hasMore
+            ? const CircularProgressIndicator()
+            : const Text('没有更多图片了', style: TextStyle(color: Colors.grey)),
       ),
     );
   }

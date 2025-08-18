@@ -42,6 +42,7 @@ dependencies:
   flutter_image_compress: ^2.4.0
   collection: ^1.19.1
   dio: ^5.8.0+1
+  cached_network_image: ^3.4.1
 
 
 dev_dependencies:
@@ -60,6 +61,11 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
+  fonts:
+    - family: YeHei  # 自定义字体名称
+      fonts:
+        - asset: fonts\MSYHMONO.TTF
+          weight: 700
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

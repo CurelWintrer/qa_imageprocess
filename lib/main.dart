@@ -7,7 +7,6 @@ import 'package:qa_imageprocess/home_page.dart';
 import 'package:qa_imageprocess/pages/system_set.dart';
 import 'package:qa_imageprocess/pages/work.dart';
 import 'package:qa_imageprocess/pages/work_arrange.dart';
-import 'package:qa_imageprocess/pages/work_detail.dart';
 import 'package:qa_imageprocess/user_session.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -40,14 +39,17 @@ class MyApp extends StatelessWidget {
       title: 'Flutter Demo',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color.fromARGB(255, 58, 108, 183)),
+        fontFamily: 'YeHei'
       ),
       home: isLogin() ? const HomePage() : const LoginPage(),
       routes: {
         '/home': (context) => const HomePage(),
         '/login': (context) => LoginPage(),
         '/systemSet': (context) => SystemSet(),
-        '/work':(context)=>Work(),
-        '/workDetail':(context)=>WorkDetail(),
+        '/workDetail': (context) {
+          final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+          return WorkDetailScreen(workID: args['workID']);
+        },
         '/workArrange':(context)=>WorkArrange(),
       },
     );
