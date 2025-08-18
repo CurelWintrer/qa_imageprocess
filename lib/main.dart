@@ -6,6 +6,8 @@ import 'package:qa_imageprocess/UserAccount/login_page.dart';
 import 'package:qa_imageprocess/home_page.dart';
 import 'package:qa_imageprocess/pages/system_set.dart';
 import 'package:qa_imageprocess/pages/work.dart';
+import 'package:qa_imageprocess/pages/work_arrange.dart';
+import 'package:qa_imageprocess/pages/work_detail.dart';
 import 'package:qa_imageprocess/user_session.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -45,6 +47,8 @@ class MyApp extends StatelessWidget {
         '/login': (context) => LoginPage(),
         '/systemSet': (context) => SystemSet(),
         '/work':(context)=>Work(),
+        '/workDetail':(context)=>WorkDetail(),
+        '/workArrange':(context)=>WorkArrange(),
       },
     );
   }

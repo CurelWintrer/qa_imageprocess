@@ -29,4 +29,26 @@ class User {
       updated_at: json['updated_at']?.toString(),
     );
   }
+
+  static String getUserRole(int role) {
+    switch (role) {
+      case 0:
+        return '普通用户';
+      case 1:
+        return '管理员';
+      default:
+        return '';
+    }
+  }
+
+  static String getUserState(int state) {
+    switch (state) {
+      case 0:
+        return '正常';
+      case 1:
+        return '禁用';
+      default:
+        return '';
+    }
+  }
 }

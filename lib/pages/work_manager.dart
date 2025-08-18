@@ -33,91 +33,154 @@ class _WorkManagerState extends State<WorkManager> {
   // 任务列表相关状态
   List<WorkModel> _works = [];
   bool _isLoading = false;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
   int _currentPage = 1;
   int _pageSize = 10;
   int _totalItems = 0;
   int _totalPages = 1;
+  
+  // 滚动控制器
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     _fetchCategories(); // 初始化时获取类目
     _fetchAllUsers();
+    
+    // 添加滚动监听器
+    _scrollController.addListener(_onScroll);
+  }
+  
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+  
+  // 滚动监听器
+  void _onScroll() {
+    if (_scrollController.position.pixels >= 
+        _scrollController.position.maxScrollExtent - 200) {
+      if (!_isLoadingMore && _hasMore) {
+        _loadMoreWorks();
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Column(
-        children: [_buildTitleSelector(), _buildWorkList()]
+        children: [
+          _buildTitleSelector(), 
+          Expanded(child: _buildWorkList())
+        ]
       ),
     );
   }
 
   Widget _buildTitleSelector() {
-    return Padding(
+    return Container(
       padding: const EdgeInsets.all(16.0),
-      child: Wrap(
-        spacing: 16,
-        runSpacing: 16,
-        children: [
-          // 采集类目下拉框
-          _buildLevelDropdown(
-            value: _selectedCategoryId,
-            options: _categories.map((e) => e['id'] as String).toList(),
-            hint: '采集类目',
-            displayValues: _categories.fold({}, (map, item) {
-              map[item['id']] = item['name'];
-              return map;
-            }),
-            onChanged: (newValue) {
-              setState(() {
-                _selectedCategoryId = newValue;
-              });
-              _fetchCollectorTypes(newValue);
-            },
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 3,
+            offset: const Offset(0, 2),
           ),
-
-          // 采集类型下拉框
-          _buildLevelDropdown(
-            value: _selectedCollectorTypeId,
-            options: _collectorTypes.map((e) => e['id'] as String).toList(),
-            hint: '采集类型',
-            displayValues: _collectorTypes.fold({}, (map, item) {
-              map[item['id']] = item['name'];
-              return map;
-            }),
-            onChanged: (newValue) {
-              setState(() {
-                _selectedCollectorTypeId = newValue;
-              });
-              _fetchQuestionDirections(newValue);
-            },
-            enabled: _selectedCategoryId != null,
-          ),
-
-          // 问题方向下拉框
-          _buildLevelDropdown(
-            value: _selectedQuestionDirectionId,
-            options: _questionDirections.map((e) => e['id'] as String).toList(),
-            hint: '问题方向',
-            displayValues: _questionDirections.fold({}, (map, item) {
-              map[item['id']] = item['name'];
-              return map;
-            }),
-            onChanged: (newValue) {
-              setState(() {
-                _selectedQuestionDirectionId = newValue;
-              });
-            },
-            enabled: _selectedCollectorTypeId != null,
-          ),
-
-          // 用户下拉框
-          _buildUserDropdown(),
-          _buildSearchButton(),
         ],
       ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWideScreen = constraints.maxWidth > 800;
+          
+          final children = [
+            _buildCategoryDropdown(),
+            _buildCollectorTypeDropdown(),
+            _buildQuestionDirectionDropdown(),
+            _buildUserDropdown(),
+            _buildSearchButton(),
+            _buildWorkButton()
+          ];
+          
+          if (isWideScreen) {
+            return Row(
+              children: children.map((child) => 
+                Expanded(flex: 1, child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  child: child,
+                ))
+              ).toList(),
+            );
+          } else {
+            return Wrap(
+              spacing: 16,
+              runSpacing: 16,
+              children: children,
+            );
+          }
+        },
+      ),
+    );
+  }
+  
+  Widget _buildCategoryDropdown() {
+    return _buildLevelDropdown(
+      value: _selectedCategoryId,
+      options: _categories.map((e) => e['id'] as String).toList(),
+      hint: '采集类目',
+      displayValues: _categories.fold({}, (map, item) {
+        map[item['id']] = item['name'];
+        return map;
+      }),
+      onChanged: (newValue) {
+        setState(() {
+          _selectedCategoryId = newValue;
+        });
+        _fetchCollectorTypes(newValue);
+      },
+    );
+  }
+  
+  Widget _buildCollectorTypeDropdown() {
+    return _buildLevelDropdown(
+      value: _selectedCollectorTypeId,
+      options: _collectorTypes.map((e) => e['id'] as String).toList(),
+      hint: '采集类型',
+      displayValues: _collectorTypes.fold({}, (map, item) {
+        map[item['id']] = item['name'];
+        return map;
+      }),
+      onChanged: (newValue) {
+        setState(() {
+          _selectedCollectorTypeId = newValue;
+        });
+        _fetchQuestionDirections(newValue);
+      },
+      enabled: _selectedCategoryId != null,
+    );
+  }
+  
+  Widget _buildQuestionDirectionDropdown() {
+    return _buildLevelDropdown(
+      value: _selectedQuestionDirectionId,
+      options: _questionDirections.map((e) => e['id'] as String).toList(),
+      hint: '问题方向',
+      displayValues: _questionDirections.fold({}, (map, item) {
+        map[item['id']] = item['name'];
+        return map;
+      }),
+      onChanged: (newValue) {
+        setState(() {
+          _selectedQuestionDirectionId = newValue;
+        });
+      },
+      enabled: _selectedCollectorTypeId != null,
     );
   }
 
@@ -139,7 +202,7 @@ class _WorkManagerState extends State<WorkManager> {
       }).toList(),
     ];
 
-    return Container(
+    return SizedBox(
       width: 180,
       child: DropdownButtonFormField<String?>(
         value: _selectedUserId,
@@ -200,7 +263,7 @@ class _WorkManagerState extends State<WorkManager> {
       }).toList(),
     ];
 
-    return Container(
+    return SizedBox(
       width: 180,
       child: DropdownButtonFormField<String?>(
         value: value,
@@ -218,25 +281,77 @@ class _WorkManagerState extends State<WorkManager> {
 
   // 查询按钮
   Widget _buildSearchButton() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+    return SizedBox(
+      width: 60,
+      height: 50,
       child: ElevatedButton(
-        onPressed: _fetchWorks,
+        onPressed: _isLoading ? null : _searchWorks,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.blue,
           foregroundColor: Colors.white,
-          // minimumSize: const Size(double.infinity, 50),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
         ),
         child: _isLoading
-            ? const CircularProgressIndicator(color: Colors.white)
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              )
             : const Text('查询任务', style: TextStyle(fontSize: 16)),
       ),
     );
   }
 
+  Widget _buildWorkButton(){
+    return SizedBox(
+      width: 60,
+      height: 50,
+      child: ElevatedButton(
+        onPressed: ()=>{Navigator.pushNamed(context, '/workArrange')},
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.green,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8)
+          )
+        ),
+         child: const Text('分配任务')
+        ),
+    );
+  }
+  
+  // 搜索任务（重置分页）
+  Future<void> _searchWorks() async {
+    setState(() {
+      _currentPage = 1;
+      _hasMore = true;
+      _works.clear();
+    });
+    await _fetchWorks(append: false);
+  }
+  
+  // 加载更多任务
+  Future<void> _loadMoreWorks() async {
+    if (_hasMore && !_isLoadingMore) {
+      setState(() {
+        _currentPage++;
+      });
+      await _fetchWorks(append: true);
+    }
+  }
+
   // 查询任务列表
-  Future<void> _fetchWorks() async {
-    setState(() => _isLoading = true);
+  Future<void> _fetchWorks({bool append = false}) async {
+    if (append) {
+      setState(() => _isLoadingMore = true);
+    } else {
+      setState(() => _isLoading = true);
+    }
 
     try {
       // 构建查询参数
@@ -291,16 +406,25 @@ class _WorkManagerState extends State<WorkManager> {
         final pagination =
             data['data']['pagination'] as Map<String, dynamic>? ?? {};
 
+        final newWorks = worksData.map<WorkModel>((work) {
+          return WorkModel.fromJson(work as Map<String, dynamic>);
+        }).toList();
+        
         setState(() {
-          _works = worksData.map<WorkModel>((work) {
-            return WorkModel.fromJson(work as Map<String, dynamic>);
-          }).toList();
+          if (append) {
+            _works.addAll(newWorks);
+          } else {
+            _works = newWorks;
+          }
 
           // 安全处理可能为 null 的值
           _currentPage = (pagination['currentPage'] as int?) ?? _currentPage;
           _pageSize = (pagination['pageSize'] as int?) ?? _pageSize;
           _totalItems = (pagination['totalItems'] as int?) ?? _totalItems;
           _totalPages = (pagination['totalPages'] as int?) ?? _totalPages;
+          
+          // 更新是否还有更多数据
+          _hasMore = _currentPage < _totalPages;
         });
       } else {
         throw Exception('Failed to load works: ${response.statusCode}');
@@ -311,109 +435,312 @@ class _WorkManagerState extends State<WorkManager> {
         context,
       ).showSnackBar(SnackBar(content: Text('加载任务失败: $e')));
     } finally {
-      setState(() => _isLoading = false);
+      setState(() {
+        _isLoading = false;
+        _isLoadingMore = false;
+      });
     }
   }
 
   // 任务列表
   Widget _buildWorkList() {
     if (_works.isEmpty && !_isLoading) {
-      return const Padding(
-        padding: EdgeInsets.all(16.0),
-        child: Text('暂无任务数据', style: TextStyle(fontSize: 16)),
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.inbox_outlined, size: 64, color: Colors.grey),
+              SizedBox(height: 16),
+              Text('暂无任务数据', style: TextStyle(fontSize: 18, color: Colors.grey)),
+              SizedBox(height: 8),
+              Text('请调整筛选条件后重新查询', style: TextStyle(fontSize: 14, color: Colors.grey)),
+            ],
+          ),
+        ),
       );
     }
 
-    return Column(
-      children: [
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: _works.length,
-          itemBuilder: (context, index) {
-            final work = _works[index];
-            return _buildWorkItem(work);
-          },
-        ),
-        _buildPaginationControls(),
-      ],
+    return RefreshIndicator(
+      onRefresh: _searchWorks,
+      child: ListView.builder(
+        controller: _scrollController,
+        padding: const EdgeInsets.all(16.0),
+        itemCount: _works.length + (_hasMore ? 1 : 0),
+        itemBuilder: (context, index) {
+          if (index == _works.length) {
+            // 加载更多指示器
+            return Container(
+              padding: const EdgeInsets.all(16.0),
+              alignment: Alignment.center,
+              child: _isLoadingMore
+                  ? const CircularProgressIndicator()
+                  : const SizedBox.shrink(),
+            );
+          }
+          
+          final work = _works[index];
+          return _buildWorkItem(work);
+        },
+      ),
     );
   }
 
   // 单个任务项
   Widget _buildWorkItem(WorkModel work) {
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      margin: const EdgeInsets.only(bottom: 12.0),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Row(
-          children: [
-            // 左侧信息
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '任务ID: ${work.workID}',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  Text('管理员: ${work.admin.name}'),
-                  const SizedBox(height: 4),
-                  Text('工作人员: ${work.worker.name}'),
-                  const SizedBox(height: 4),
-                  Text('目标数量: ${work.targetCount}'),
-                  const SizedBox(height: 4),
-                  Text('当前数量: ${work.currentCount}'),
-                ],
-              ),
-            ),
-
-            // 右侧状态和按钮
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                // 状态标签
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: WorkModel.getWorkStateColor(
-                      work.state,
-                    ).withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: WorkModel.getWorkStateColor(work.state),
-                    ),
-                  ),
-                  child: Text(
-                    WorkModel.getWorkState(work.state),
-                    style: TextStyle(
-                      color: WorkModel.getWorkStateColor(work.state),
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                // 查看按钮
-                ElevatedButton(
-                  onPressed: () => _viewWorkDetails(work),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue.shade100,
-                    foregroundColor: Colors.blue,
-                  ),
-                  child: const Text('查看详情'),
-                ),
-              ],
-            ),
-          ],
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // final isWideScreen = constraints.maxWidth > 600;
+            
+            // if (isWideScreen) {
+              return _buildWideScreenLayout(work);
+            // } else {
+            //   return _buildNarrowScreenLayout(work);
+            // }
+          },
         ),
       ),
     );
   }
-
+  
+  // 宽屏布局
+  Widget _buildWideScreenLayout(WorkModel work) {
+    return Row(
+      children: [
+        // 任务基本信息
+        Expanded(
+          flex: 2,
+          child: _buildTaskInfo(work),
+        ),
+        const SizedBox(width: 16),
+        
+        // 进度信息
+        Expanded(
+          flex: 1,
+          child: _buildProgressInfo(work),
+        ),
+        const SizedBox(width: 16),
+        
+        // 状态和操作
+        SizedBox(
+          width: 120,
+          child: _buildStatusAndActions(work),
+        ),
+      ],
+    );
+  }
+  
+  // 窄屏布局
+  // Widget _buildNarrowScreenLayout(WorkModel work) {
+  //   return Column(
+  //     crossAxisAlignment: CrossAxisAlignment.start,
+  //     children: [
+  //       Row(
+  //         children: [
+  //           Expanded(child: _buildTaskInfo(work)),
+  //           _buildStatusBadge(work),
+  //         ],
+  //       ),
+  //       const SizedBox(height: 12),
+  //       _buildProgressInfo(work),
+  //       const SizedBox(height: 12),
+  //       _buildActionButtons(work),
+  //     ],
+  //   );
+  // }
+  
+  // 任务基本信息
+  Widget _buildTaskInfo(WorkModel work) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              '任务 #${work.workID}',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(width: 8),
+            _buildDifficultyBadge(work.difficulty),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '类目: ${work.category}',
+          style: TextStyle(color: Colors.grey[600]),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '类型: ${work.collectorType}',
+          style: TextStyle(color: Colors.grey[600]),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '方向: ${work.questionDirection}',
+          style: TextStyle(color: Colors.grey[600]),
+        ),
+      ],
+    );
+  }
+  
+  // 进度信息
+  Widget _buildProgressInfo(WorkModel work) {
+    final progress = work.targetCount > 0 ? work.currentCount / work.targetCount : 0.0;
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.person, size: 16, color: Colors.grey[600]),
+            const SizedBox(width: 4),
+            Text(
+              '管理员: ${work.admin.name}',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            Icon(Icons.work, size: 16, color: Colors.grey[600]),
+            const SizedBox(width: 4),
+            Text(
+              '工作人员: ${work.worker.name}',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: LinearProgressIndicator(
+                value: progress,
+                backgroundColor: Colors.grey[300],
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  progress >= 1.0 ? Colors.green : Colors.blue,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '${work.currentCount}/${work.targetCount}',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+  
+  // 难度徽章
+  Widget _buildDifficultyBadge(int difficulty) {
+    final colors = {
+      1: Colors.green,
+      2: Colors.orange,
+      3: Colors.red,
+    };
+    
+    final labels = {
+      1: '简单',
+      2: '中等',
+      3: '困难',
+    };
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: (colors[difficulty] ?? Colors.grey).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: colors[difficulty] ?? Colors.grey,
+          width: 1,
+        ),
+      ),
+      child: Text(
+        labels[difficulty] ?? '未知',
+        style: TextStyle(
+          color: colors[difficulty] ?? Colors.grey,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+  
+  // 状态徽章
+  Widget _buildStatusBadge(WorkModel work) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 12,
+        vertical: 6,
+      ),
+      decoration: BoxDecoration(
+        color: WorkModel.getWorkStateColor(work.state).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: WorkModel.getWorkStateColor(work.state),
+        ),
+      ),
+      child: Text(
+        WorkModel.getWorkState(work.state),
+        style: TextStyle(
+          color: WorkModel.getWorkStateColor(work.state),
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+  
+  // 状态和操作（宽屏用）
+  Widget _buildStatusAndActions(WorkModel work) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        _buildStatusBadge(work),
+        const SizedBox(height: 12),
+        _buildActionButtons(work),
+      ],
+    );
+  }
+  
+  // 操作按钮
+  Widget _buildActionButtons(WorkModel work) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: () => _viewWorkDetails(work),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.blue.shade50,
+          foregroundColor: Colors.blue,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+        icon: const Icon(Icons.visibility, size: 16),
+        label: const Text('查看'),
+      ),
+    );
+  }
+  
   void _viewWorkDetails(WorkModel work) {
     // 这里可以跳转到任务详情页面
     showDialog(
@@ -447,37 +774,7 @@ class _WorkManagerState extends State<WorkManager> {
       ),
     );
   }
-
-  // 分页控件
-  Widget _buildPaginationControls() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: _currentPage > 1
-                ? () {
-                    setState(() => _currentPage--);
-                    _fetchWorks();
-                  }
-                : null,
-          ),
-          Text('第 $_currentPage 页 / 共 $_totalPages 页'),
-          IconButton(
-            icon: const Icon(Icons.arrow_forward),
-            onPressed: _currentPage < _totalPages
-                ? () {
-                    setState(() => _currentPage++);
-                    _fetchWorks();
-                  }
-                : null,
-          ),
-        ],
-      ),
-    );
-  }
+  
 
   // 通用API请求方法
   Future<List<dynamic>> _fetchData(String endpoint) async {
