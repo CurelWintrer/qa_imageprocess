@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:qa_imageprocess/MyWidget/UserDetailWidget.dart';
 import 'package:qa_imageprocess/model/user.dart';
 import 'dart:convert';
 
@@ -18,24 +19,36 @@ class _WorkArrangeState extends State<WorkArrange> {
   bool _isLoading = false;
   String _errorMessage = '';
 
-    // 类目相关状态
+  // 类目相关状态
   List<Map<String, dynamic>> _categories = [];
   String? _selectedCategoryId;
+  String? _selectedCategoryName;
 
   // 采集类型相关状态
   List<Map<String, dynamic>> _collectorTypes = [];
   String? _selectedCollectorTypeId;
+  String? _selectedCollectorTypeName;
 
   // 问题方向相关状态
   List<Map<String, dynamic>> _questionDirections = [];
   String? _selectedQuestionDirectionId;
-
+  String? _selectedQuestionDirectionName;
+  // 难度和数量状态
+  int? _selectedDifficulty;
+  final TextEditingController _countController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _fetchUsers();
     _fetchCategories(); // 初始化时获取类目
+    _countController.text = '10'; // 默认数量
+  }
+
+  @override
+  void dispose() {
+    _countController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchUsers() async {
@@ -76,7 +89,7 @@ class _WorkArrangeState extends State<WorkArrange> {
     }
   }
 
-  @override
+   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('任务分配')),
@@ -84,112 +97,11 @@ class _WorkArrangeState extends State<WorkArrange> {
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage.isNotEmpty
           ? Center(child: Text(_errorMessage))
-          : _buildUserDetail()
+          : _buildMainLayout()
     );
   }
 
-    Widget _buildCategoryDropdown() {
-    return _buildLevelDropdown(
-      value: _selectedCategoryId,
-      options: _categories.map((e) => e['id'] as String).toList(),
-      hint: '采集类目',
-      displayValues: _categories.fold({}, (map, item) {
-        map[item['id']] = item['name'];
-        return map;
-      }),
-      onChanged: (newValue) {
-        setState(() {
-          _selectedCategoryId = newValue;
-        });
-        _fetchCollectorTypes(newValue);
-      },
-    );
-  }
-  
-  Widget _buildCollectorTypeDropdown() {
-    return _buildLevelDropdown(
-      value: _selectedCollectorTypeId,
-      options: _collectorTypes.map((e) => e['id'] as String).toList(),
-      hint: '采集类型',
-      displayValues: _collectorTypes.fold({}, (map, item) {
-        map[item['id']] = item['name'];
-        return map;
-      }),
-      onChanged: (newValue) {
-        setState(() {
-          _selectedCollectorTypeId = newValue;
-        });
-        _fetchQuestionDirections(newValue);
-      },
-      enabled: _selectedCategoryId != null,
-    );
-  }
-  
-  Widget _buildQuestionDirectionDropdown() {
-    return _buildLevelDropdown(
-      value: _selectedQuestionDirectionId,
-      options: _questionDirections.map((e) => e['id'] as String).toList(),
-      hint: '问题方向',
-      displayValues: _questionDirections.fold({}, (map, item) {
-        map[item['id']] = item['name'];
-        return map;
-      }),
-      onChanged: (newValue) {
-        setState(() {
-          _selectedQuestionDirectionId = newValue;
-        });
-      },
-      enabled: _selectedCollectorTypeId != null,
-    );
-  }
-
-    // 修复普通下拉框 - 显式使用 String?
-  Widget _buildLevelDropdown({
-    required String? value,
-    required List<String> options,
-    required String hint,
-    required Map<String, String> displayValues,
-    bool enabled = true,
-    ValueChanged<String?>? onChanged,
-  }) {
-    // 修复：直接构建菜单项列表
-    final items = [
-      // 添加空选项
-      DropdownMenuItem<String?>(
-        value: null,
-        child: Text('未选择', style: TextStyle(color: Colors.grey)),
-      ),
-      // 添加其他选项
-      ...options.map((id) {
-        return DropdownMenuItem<String?>(
-          value: id,
-          child: Text(
-            displayValues[id] ?? '未知',
-            overflow: TextOverflow.ellipsis,
-          ),
-        );
-      }).toList(),
-    ];
-
-    return SizedBox(
-      width: 180,
-      child: DropdownButtonFormField<String?>(
-        value: value,
-        isExpanded: true,
-        decoration: InputDecoration(
-          labelText: hint,
-          border: const OutlineInputBorder(),
-          enabled: enabled,
-        ),
-        items: items,
-        onChanged: enabled ? onChanged : null,
-      ),
-    );
-  }
-
-
-
-  Widget _buildUserDetail() {
+  Widget _buildMainLayout() {
     return Row(
       children: [
         // 左侧用户列表
@@ -220,42 +132,171 @@ class _WorkArrangeState extends State<WorkArrange> {
         Expanded(
           child: _selectedUser == null
               ? const Center(child: Text('请选择用户查看详情'))
-              : Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _selectedUser!.name,
-                        style: Theme.of(context).textTheme.headlineSmall,
-                      ),
-                      const SizedBox(height: 10),
-                      Text('ID: ${_selectedUser!.userID}'),
-                      Text('邮箱: ${_selectedUser!.email}'),
-                      Text('角色: ${User.getUserRole(_selectedUser!.role ?? 0)}'),
-                      Text(
-                        '状态: ${User.getUserState(_selectedUser!.state ?? 0)}',
-                      ),
-                      const SizedBox(height: 30),
-                      ElevatedButton(
-                        onPressed: () {
-                          // TODO: 实现分配任务逻辑
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('即将为 ${_selectedUser!.name} 分配任务'),
-                            ),
-                          );
-                        },
-                        child: const Text('分配任务'),
-                      ),
-                    ],
-                  ),
+              : UserDetailWidget(
+                  user: _selectedUser!,
+                  categories: _categories,
+                  collectorTypes: _collectorTypes,
+                  questionDirections: _questionDirections,
+                  selectedCategoryId: _selectedCategoryId,
+                  selectedCollectorTypeId: _selectedCollectorTypeId,
+                  selectedQuestionDirectionId: _selectedQuestionDirectionId,
+                  selectedDifficulty: _selectedDifficulty,
+                  countController: _countController,
+                  onCategorySelected: (id, name) {
+                    setState(() {
+                      _selectedCategoryId = id;
+                      _selectedCategoryName = name;
+                      _selectedCollectorTypeId = null;
+                      _selectedCollectorTypeName = null;
+                      _selectedQuestionDirectionId = null;
+                      _selectedQuestionDirectionName = null;
+                    });
+                    if (id != null) {
+                      _fetchCollectorTypes(id);
+                    } else {
+                      setState(() {
+                        _collectorTypes = [];
+                        _questionDirections = [];
+                      });
+                    }
+                  },
+                  onCollectorTypeSelected: (id, name) {
+                    setState(() {
+                      _selectedCollectorTypeId = id;
+                      _selectedCollectorTypeName = name;
+                      _selectedQuestionDirectionId = null;
+                      _selectedQuestionDirectionName = null;
+                    });
+                    if (id != null) {
+                      _fetchQuestionDirections(id);
+                    } else {
+                      setState(() {
+                        _questionDirections = [];
+                      });
+                    }
+                  },
+                  onQuestionDirectionSelected: (id, name) {
+                    setState(() {
+                      _selectedQuestionDirectionId = id;
+                      _selectedQuestionDirectionName = name;
+                    });
+                  },
+                  onDifficultySelected: (difficulty) {
+                    setState(() {
+                      _selectedDifficulty = difficulty;
+                    });
+                  },
+                  onAssignTask: _assignTask,
                 ),
         ),
       ],
     );
   }
-    // 通用API请求方法
+
+  // 分配任务方法
+  Future<void> _assignTask() async {
+    if (_selectedUser == null) return;
+    
+    // 验证所有选项都已选择
+    if (_selectedCategoryId == null || 
+        _selectedCollectorTypeId == null || 
+        _selectedQuestionDirectionId == null ||
+        _selectedDifficulty == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请选择所有必填参数（包括难度）')),
+      );
+      return;
+    }
+    
+    // 验证任务数量
+    final count = int.tryParse(_countController.text);
+    if (count == null || count <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请输入有效的任务数量（大于0）')),
+      );
+      return;
+    }
+    
+    // 准备API请求
+    final url = Uri.parse('${UserSession().baseUrl}/api/works/assign');
+    final headers = {
+      'Authorization': 'Bearer ${UserSession().token}',
+      'Content-Type': 'application/json'
+    };
+    
+    final body = json.encode({
+      "workerID": _selectedUser!.userID,
+      "category": _selectedCategoryName, // 注意API要求传递名称而不是ID
+      "collector_type": _selectedCollectorTypeName,
+      "question_direction": _selectedQuestionDirectionName,
+      "targetCount": count,
+      "difficulty": _selectedDifficulty,
+    });
+    
+    try {
+      final response = await http.post(url, headers: headers, body: body);
+
+      print(response.body);
+      
+      if (response.statusCode == 200) {
+        final result = json.decode(response.body);
+        if (result['code'] == 200) {
+          // 成功处理
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('任务分配成功！任务ID: ${result['data']['workID']}'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+          
+          // 重置表单（可选）
+          _resetForm();
+        } else {
+          // 服务器返回错误
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('分配失败: ${result['message']}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } else {
+        // HTTP状态码错误
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('请求失败: ${response.statusCode}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      // 网络异常
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('网络错误: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+   // 重置表单
+  void _resetForm() {
+    setState(() {
+      _selectedCategoryId = null;
+      _selectedCategoryName = null;
+      _selectedCollectorTypeId = null;
+      _selectedCollectorTypeName = null;
+      _selectedQuestionDirectionId = null;
+      _selectedQuestionDirectionName = null;
+      _selectedDifficulty = null;
+      _countController.text = '10';
+    });
+  }
+
+
+  // 通用API请求方法
   Future<List<dynamic>> _fetchData(String endpoint) async {
     final response = await http.get(
       Uri.parse('${UserSession().baseUrl}$endpoint'),
@@ -269,7 +310,8 @@ class _WorkArrangeState extends State<WorkArrange> {
       throw Exception('Failed to load data from $endpoint');
     }
   }
-    // 获取所有类目
+
+  // 获取所有类目
   Future<void> _fetchCategories() async {
     try {
       final categories = await _fetchData('/api/category/');
@@ -348,7 +390,4 @@ class _WorkArrangeState extends State<WorkArrange> {
       print('Error fetching question directions: $e');
     }
   }
-
-
-
 }
