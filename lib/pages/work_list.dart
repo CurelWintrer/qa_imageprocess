@@ -262,15 +262,12 @@ class _WorkListState extends State<WorkList> {
         Row(
           children: [
             _buildSummaryCard(),
-            Spacer(),
-            Padding(
-              padding: EdgeInsets.only(right: 20),
-              child: IconButton(
+            SizedBox(width: 10),
+            IconButton(
                 icon: const Icon(Icons.refresh),
                 onPressed: _loadInitialData,
                 tooltip: '刷新',
-              ),
-            ),
+            )
           ],
         ),
 
@@ -415,12 +412,11 @@ class _WorkListState extends State<WorkList> {
               ],
             ),
 
-            const SizedBox(height: 12),
 
             // 进度条
             _buildProgressBar(work),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 5),
 
             // 操作按钮
             Row(
