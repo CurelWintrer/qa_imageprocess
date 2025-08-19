@@ -773,7 +773,7 @@ class _ImageDetailState extends State<ImageDetail> {
     );
   }
 
-  // 添加API更新方法
+  //添加API更新方法
   Future<ImageModel?> _updateImageQA({
     required int imageId,
     required String questionText,

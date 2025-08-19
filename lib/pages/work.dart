@@ -7,6 +7,7 @@ import 'package:qa_imageprocess/model/image_model.dart';
 import 'package:qa_imageprocess/model/image_state.dart';
 import 'package:qa_imageprocess/model/question_model.dart';
 import 'package:qa_imageprocess/model/work_model.dart';
+import 'package:qa_imageprocess/tools/ai_service.dart';
 import 'package:qa_imageprocess/user_session.dart';
 
 class WorkDetailScreen extends StatefulWidget {
@@ -124,26 +125,24 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
     });
   }
 
-
-
   // 打开图片详情弹窗
   void _openImageDetail(ImageModel image) {
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    useSafeArea: true,
-    builder: (context) {
-      return Dialog(
-        insetPadding: const EdgeInsets.all(20),
-        child: ImageDetail(
-          image: image,
-          onImageUpdated: _handleImageUpdated,
-          onClose: () => Navigator.pop(context),
-        ),
-      );
-    },
-  );
-}
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      useSafeArea: true,
+      builder: (context) {
+        return Dialog(
+          insetPadding: const EdgeInsets.all(20),
+          child: ImageDetail(
+            image: image,
+            onImageUpdated: _handleImageUpdated,
+            onClose: () => Navigator.pop(context),
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -224,6 +223,49 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
     );
   }
 
+  Future<void> _executeAITask(ImageModel image) async {
+    try {
+      // 1. 调用AI服务
+      final qa = await AiService.getQA(image);
+      if (qa == null) throw Exception('AI服务返回空数据');
+
+      debugPrint('AI生成结果: ${qa.toString()}');
+
+      // 2. 更新到后端API
+      final updatedImage = await _updateImageQA(
+        image: image,
+        questionText: qa.question,
+        answers: qa.options,
+        rightAnswerIndex: qa.correctAnswer,
+        explanation: qa.explanation,
+        textCOT: qa.textCOT,
+      );
+
+      setState(() {
+        // 找到并更新图片列表中的对应图片
+        final index = _images.indexWhere(
+          (img) => img.imageID == updatedImage!.imageID,
+        );
+        if (index != -1) {
+          _images[index] = updatedImage!;
+        }
+      });
+
+      if (updatedImage == null) throw Exception('图片更新失败');
+      // 4. 显示成功提示
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('图片${updatedImage.imageID}AI处理完成')),
+      );
+    } catch (e, stackTrace) {
+      debugPrint('AI处理错误: $e\n$stackTrace');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('处理失败: ${e.toString()}')));
+      }
+    }
+  }
+
   // 网格项组件
   Widget _buildGridItem(ImageModel image) {
     final firstQuestion = image.questions?.isNotEmpty == true
@@ -273,14 +315,31 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
               ],
             ),
           ),
-
-          // 图片信息
-          Padding(
-            padding: const EdgeInsets.all(8),
-            child: Text(
-              '#${image.imageID}',
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-            ),
+          Row(
+            children: [
+              // 图片信息
+              Padding(
+                padding: const EdgeInsets.only(left: 10),
+                child: Text(
+                  '#${image.imageID}',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              Spacer(),
+              //快捷AI更新QA按钮
+              Padding(
+                padding: const EdgeInsets.only(right: 10),
+                child: IconButton(
+                  onPressed: () => {_executeAITask(image)},
+                  icon: Icon(Icons.auto_awesome),
+                  iconSize: 20,
+                  tooltip: 'AI-QA',
+                ),
+              ),
+            ],
           ),
 
           // 问题摘要（显示第一个问题）
@@ -382,6 +441,53 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
         ),
       ),
     );
+  }
+
+  Future<ImageModel?> _updateImageQA({
+    required ImageModel image,
+    required String questionText,
+    String? explanation,
+    String? textCOT,
+    required List<String> answers,
+    required int rightAnswerIndex,
+  }) async {
+    final url = '${UserSession().baseUrl}/api/image/${image.imageID}/qa';
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ${UserSession().token ?? ''}',
+    };
+    final body = jsonEncode({
+      'difficulty': image.difficulty ?? 0,
+      'questionText': questionText,
+      'answers': answers,
+      'rightAnswerIndex': rightAnswerIndex,
+      'explanation': explanation,
+      'textCOT': textCOT,
+    });
+
+    try {
+      final response = await http.put(
+        Uri.parse(url),
+        headers: headers,
+        body: body,
+      );
+
+      print(response.body);
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        return ImageModel.fromJson(responseData['data']);
+      } else {
+        throw Exception('更新失败: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('更新失败: $e')));
+      }
+      return null;
+    }
   }
 
   // 加载更多指示器
