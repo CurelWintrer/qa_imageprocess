@@ -29,6 +29,8 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
   String _errorMessage = '';
   int _columnCount = 4; // 默认4列
 
+  Set<int> _processingImageIDs = {}; // 记录正在处理AI的图片ID
+
   @override
   void initState() {
     super.initState();
@@ -224,6 +226,11 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
   }
 
   Future<void> _executeAITask(ImageModel image) async {
+    if (mounted) {
+      setState(() {
+        _processingImageIDs.add(image.imageID);
+      });
+    }
     try {
       // 1. 调用AI服务
       final qa = await AiService.getQA(image);
@@ -263,6 +270,12 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
           context,
         ).showSnackBar(SnackBar(content: Text('处理失败: ${e.toString()}')));
       }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _processingImageIDs.remove(image.imageID);
+        });
+      }
     }
   }
 
@@ -271,101 +284,117 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
     final firstQuestion = image.questions?.isNotEmpty == true
         ? image.questions?.first
         : null;
-
+    // 检查当前图片是否正在处理中
+    final bool isProcessing = _processingImageIDs.contains(image.imageID);
     return Card(
       elevation: 2,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          // 图片区域
-          Expanded(
-            flex: 3,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                // 图片显示
-                image.path?.isNotEmpty == true
-                    ? CachedNetworkImage(
-                        imageUrl: '${UserSession().baseUrl}/${image.path}',
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => Container(
-                          color: Colors.grey[200],
-                          child: const Center(
-                            child: CircularProgressIndicator(),
-                          ),
-                        ),
-                        errorWidget: (context, url, error) => Container(
-                          color: Colors.grey[200],
-                          child: const Center(child: Icon(Icons.error)),
-                        ),
-                      )
-                    : Container(
-                        color: Colors.grey[200],
-                        child: const Center(
-                          child: Icon(Icons.image_not_supported),
-                        ),
-                      ),
-
-                // 图片状态标签（悬浮在右上角）
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: _buildImageStatusBadge(image.state),
-                ),
-              ],
-            ),
-          ),
-          Row(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 图片信息
-              Padding(
-                padding: const EdgeInsets.only(left: 10),
-                child: Text(
-                  '#${image.imageID}',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              Spacer(),
-              //快捷AI更新QA按钮
-              Padding(
-                padding: const EdgeInsets.only(right: 10),
-                child: IconButton(
-                  onPressed: () => {_executeAITask(image)},
-                  icon: Icon(Icons.auto_awesome),
-                  iconSize: 20,
-                  tooltip: 'AI-QA',
-                ),
-              ),
-            ],
-          ),
+              // 图片区域
+              Expanded(
+                flex: 3,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // 图片显示
+                    image.path?.isNotEmpty == true
+                        ? CachedNetworkImage(
+                            imageUrl: '${UserSession().baseUrl}/${image.path}',
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => Container(
+                              color: Colors.grey[200],
+                              child: const Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                            ),
+                            errorWidget: (context, url, error) => Container(
+                              color: Colors.grey[200],
+                              child: const Center(child: Icon(Icons.error)),
+                            ),
+                          )
+                        : Container(
+                            color: Colors.grey[200],
+                            child: const Center(
+                              child: Icon(Icons.image_not_supported),
+                            ),
+                          ),
 
-          // 问题摘要（显示第一个问题）
-          if (firstQuestion != null) ...[
-            const Divider(height: 1),
-            Padding(
-              padding: const EdgeInsets.all(8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                    // 图片状态标签（悬浮在右上角）
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: _buildImageStatusBadge(image.state),
+                    ),
+                  ],
+                ),
+              ),
+              Row(
                 children: [
-                  // 问题文本
-                  Text(
-                    firstQuestion.questionText,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 13),
+                  // 图片信息
+                  Padding(
+                    padding: const EdgeInsets.only(left: 10),
+                    child: Text(
+                      '#${image.imageID}',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
-
-                  const SizedBox(height: 6),
-
-                  // 答案选项显示
-                  _buildAnswerIndicators(firstQuestion),
+                  Spacer(),
+                  //快捷AI更新QA按钮
+                  Padding(
+                    padding: const EdgeInsets.only(right: 10),
+                    child: IconButton(
+                      onPressed: () => {_executeAITask(image)},
+                      icon: Icon(Icons.auto_awesome),
+                      iconSize: 20,
+                      tooltip: 'AI-QA',
+                    ),
+                  ),
                 ],
               ),
-            ),
-          ],
+
+              // 问题摘要（显示第一个问题）
+              if (firstQuestion != null) ...[
+                const Divider(height: 1),
+                Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 问题文本
+                      Text(
+                        firstQuestion.questionText,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 13),
+                      ),
+
+                      const SizedBox(height: 6),
+
+                      // 答案选项显示
+                      _buildAnswerIndicators(firstQuestion),
+                    ],
+                  ),
+                ),
+              ],
+              
+            ],
+          ),
+          if(isProcessing)
+                Positioned.fill(child: Container(
+                  color: Colors.black54,
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 3.0,
+                    ),
+                  ),
+                ))
         ],
       ),
     );
