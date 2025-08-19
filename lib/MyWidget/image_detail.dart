@@ -6,7 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:qa_imageprocess/model/image_model.dart';
 import 'package:qa_imageprocess/model/image_state.dart';
+import 'package:qa_imageprocess/model/prompt/qa_response.dart';
 import 'package:qa_imageprocess/model/question_model.dart';
+import 'package:qa_imageprocess/tools/ai_service.dart';
 import 'package:qa_imageprocess/user_session.dart';
 
 typedef ImageUpdateCallback = void Function(ImageModel updatedImage);
@@ -45,14 +47,16 @@ class _ImageDetailState extends State<ImageDetail> {
   // 初始化编辑控制器
   void _initEditControllers() {
     // 检查当前图片是否有问题数据
-    final question = currentImage.questions != null && currentImage.questions!.isNotEmpty
+    final question =
+        currentImage.questions != null && currentImage.questions!.isNotEmpty
         ? currentImage.questions!.first
         : null;
 
     // 初始化题目控制器
     _questionController = TextEditingController(
-        text: question?.questionText ?? '');
-    
+      text: question?.questionText ?? '',
+    );
+
     // 初始化答案控制器
     _answerControllers = [];
     if (question != null && question.answers.isNotEmpty) {
@@ -62,7 +66,8 @@ class _ImageDetailState extends State<ImageDetail> {
       // 设置当前正确答案索引
       final correctAnswerId = question.rightAnswer.answerID;
       _selectedCorrectIndex = question.answers.indexWhere(
-          (a) => a.answerID == correctAnswerId);
+        (a) => a.answerID == correctAnswerId,
+      );
       if (_selectedCorrectIndex == -1) _selectedCorrectIndex = 0;
     } else {
       // 默认添加两个空答案
@@ -101,29 +106,29 @@ class _ImageDetailState extends State<ImageDetail> {
         // 处理被删除的是正确答案的情况
         if (index == _selectedCorrectIndex) {
           _selectedCorrectIndex = 0;
-        } 
+        }
         // 处理删除后索引改变的情况
         else if (index < _selectedCorrectIndex) {
           _selectedCorrectIndex--;
         }
-        
+
         final controller = _answerControllers.removeAt(index);
         controller.dispose();
       });
     }
   }
 
-   // 提交编辑
+  // 提交编辑
   Future<void> _submitEdit() async {
     // 收集数据
     final questionText = _questionController.text.trim();
     if (questionText.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请输入问题内容')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('请输入问题内容')));
       return;
     }
-    
+
     final answers = <String>[];
     for (var controller in _answerControllers) {
       final text = controller.text.trim();
@@ -131,21 +136,21 @@ class _ImageDetailState extends State<ImageDetail> {
         answers.add(text);
       }
     }
-    
+
     if (answers.length < 2) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('至少需要两个有效答案')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('至少需要两个有效答案')));
       return;
     }
-    
+
     if (_selectedCorrectIndex >= answers.length) {
       _selectedCorrectIndex = 0;
     }
 
     // 显示处理中
     setState(() => _isProcessing = true);
-    
+
     try {
       // 调用API更新
       final updatedImage = await _updateImageQA(
@@ -161,18 +166,18 @@ class _ImageDetailState extends State<ImageDetail> {
           currentImage = updatedImage;
           _isEditing = false;
         });
-        
+
         // 通知父组件
         widget.onImageUpdated(updatedImage);
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('题目更新成功')),
-        );
+
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('题目更新成功')));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('更新失败: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('更新失败: $e')));
     } finally {
       if (mounted) {
         setState(() => _isProcessing = false);
@@ -180,7 +185,7 @@ class _ImageDetailState extends State<ImageDetail> {
     }
   }
 
-   // 构建编辑界面
+  // 构建编辑界面
   Widget _buildEditForm() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -199,14 +204,14 @@ class _ImageDetailState extends State<ImageDetail> {
           maxLines: 3,
         ),
         const SizedBox(height: 20),
-        
+
         // 答案编辑区域
         const Text(
           '答案选项:',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 10),
-        
+
         // 答案列表
         ListView.builder(
           shrinkWrap: true,
@@ -221,9 +226,10 @@ class _ImageDetailState extends State<ImageDetail> {
                   Radio<int>(
                     value: index,
                     groupValue: _selectedCorrectIndex,
-                    onChanged: (value) => setState(() => _selectedCorrectIndex = value!),
+                    onChanged: (value) =>
+                        setState(() => _selectedCorrectIndex = value!),
                   ),
-                  
+
                   // 答案输入框
                   Expanded(
                     child: TextField(
@@ -234,7 +240,7 @@ class _ImageDetailState extends State<ImageDetail> {
                       ),
                     ),
                   ),
-                  
+
                   // 删除按钮
                   if (_answerControllers.length > 1)
                     IconButton(
@@ -246,7 +252,7 @@ class _ImageDetailState extends State<ImageDetail> {
             );
           },
         ),
-        
+
         // 添加答案按钮
         OutlinedButton.icon(
           icon: const Icon(Icons.add),
@@ -254,21 +260,16 @@ class _ImageDetailState extends State<ImageDetail> {
           onPressed: _addAnswer,
         ),
         const SizedBox(height: 20),
-        
+
         // 操作按钮
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            TextButton(
-              onPressed: _cancelEditing,
-              child: const Text('取消'),
-            ),
+            TextButton(onPressed: _cancelEditing, child: const Text('取消')),
             const SizedBox(width: 16),
             ElevatedButton(
               onPressed: _isProcessing ? null : _submitEdit,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
               child: const Text('提交更新'),
             ),
           ],
@@ -276,7 +277,6 @@ class _ImageDetailState extends State<ImageDetail> {
       ],
     );
   }
-
 
   // 构建问题和答案展示组件
   Widget _buildQuestionAnswer(QuestionModel question) {
@@ -435,36 +435,66 @@ class _ImageDetailState extends State<ImageDetail> {
 
   // 执行AI操作（耗时任务）
   Future<void> _executeAITask() async {
-    setState(() => _isProcessing = true);
+  // 显示加载弹窗
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => const Center(
+      child: CircularProgressIndicator(),
+    ),
+  );
 
-    try {
-      // 模拟耗时操作（真实场景替换为实际API调用）
-      await Future.delayed(const Duration(seconds: 3));
+  setState(() => _isProcessing = true);
 
-      // 创建更新后的图片模型
-      final updatedImage = currentImage.copyWith(
-        fileName: '${currentImage.fileName} (AI处理)',
-      );
+  try {
+    // 1. 调用AI服务
+    final qa = await AiService.getQA(currentImage);
+    if (qa == null) throw Exception('AI服务返回空数据');
 
-      // 更新状态
-      setState(() => currentImage = updatedImage);
+    debugPrint('AI生成结果: ${qa.toString()}');
 
-      // 通知父组件图片已更新
+    // 2. 更新到后端API
+    final updatedImage = await _updateImageQA(
+      imageId: currentImage.imageID,
+      questionText: qa.question,
+      answers: qa.options,
+      rightAnswerIndex: qa.correctAnswer,
+    );
+
+    
+
+    if (updatedImage == null) throw Exception('图片更新失败');
+
+    // 3. 更新UI状态
+    if (mounted) {
+      setState(() {
+        currentImage = updatedImage;
+        _initEditControllers();
+        _isEditing = false;
+        
+      });
       widget.onImageUpdated(updatedImage);
+    }
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('AI处理完成')));
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('AI处理失败: $e')));
-    } finally {
-      if (mounted) {
-        setState(() => _isProcessing = false);
-      }
+    // 4. 显示成功提示
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('AI处理完成')),
+    );
+  } catch (e, stackTrace) {
+    debugPrint('AI处理错误: $e\n$stackTrace');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('处理失败: ${e.toString()}')),
+      );
+    }
+  } finally {
+    // 关闭加载弹窗
+    if (mounted) {
+      Navigator.of(context, rootNavigator: true).pop();
+      setState(() => _isProcessing = false);
     }
   }
+}
 
   // 构建信息列（右侧/下方内容）
   Widget _buildInfoColumn() {
@@ -505,62 +535,60 @@ class _ImageDetailState extends State<ImageDetail> {
           ),
 
           // 问题和答案区域
-          // if (currentImage.questions != null &&
-          //     currentImage.questions!.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 16),
-              child: Card(
-                // ... 样式不变 ...
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          // AI-QA按钮
-                          IconButton(
-                            onPressed: _isProcessing ? null : _executeAITask,
-                            icon: const Icon(Icons.auto_awesome),
-                            tooltip: 'AI-QA',
-                          ),
-                          const SizedBox(width: 20),
-                          
-                          // 编辑按钮
-                          if (!_isEditing) // 仅非编辑模式显示
-                            IconButton(
-                              onPressed: _startEditing,
-                              icon: const Icon(Icons.edit),
-                              tooltip: '手动修改',
-                            ),
-                        ],
-                      ),
-                      
-                      // 标题
-                      const Text(
-                        '题目内容',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                          color: Colors.blue,
+          Padding(
+            padding: const EdgeInsets.only(top: 16),
+            child: Card(
+              // ... 样式不变 ...
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        // AI-QA按钮
+                        IconButton(
+                          onPressed: _isProcessing ? null : _executeAITask,
+                          icon: const Icon(Icons.auto_awesome),
+                          tooltip: 'AI-QA',
                         ),
+                        const SizedBox(width: 20),
+
+                        // 编辑按钮
+                        if (!_isEditing) // 仅非编辑模式显示
+                          IconButton(
+                            onPressed: _startEditing,
+                            icon: const Icon(Icons.edit),
+                            tooltip: '手动修改',
+                          ),
+                      ],
+                    ),
+
+                    // 标题
+                    const Text(
+                      '题目内容',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                        color: Colors.blue,
                       ),
-                      const SizedBox(height: 12),
-                      
-                      // 切换编辑模式
-                      if (_isEditing)
-                        _buildEditForm()
-                      else
-                        // 原有问题和答案展示
-                        ...currentImage.questions!
-                            .map(_buildQuestionAnswer)
-                            .toList(),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // 切换编辑模式
+                    if (_isEditing)
+                      _buildEditForm()
+                    else
+                      // 原有问题和答案展示
+                      ...currentImage.questions!
+                          .map(_buildQuestionAnswer)
+                          .toList(),
+                  ],
                 ),
               ),
             ),
+          ),
         ],
       ),
     );
@@ -651,8 +679,6 @@ class _ImageDetailState extends State<ImageDetail> {
     );
   }
 
-
-
   // 添加API更新方法
   Future<ImageModel?> _updateImageQA({
     required int imageId,
@@ -661,7 +687,10 @@ class _ImageDetailState extends State<ImageDetail> {
     required int rightAnswerIndex,
   }) async {
     final url = '${UserSession().baseUrl}/api/image/$imageId/qa';
-    final headers = {'Content-Type': 'application/json','Authorization': 'Bearer ${UserSession().token ?? ''}'};
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ${UserSession().token ?? ''}',
+    };
     final body = jsonEncode({
       'difficulty': currentImage.difficulty ?? 0,
       'questionText': questionText,

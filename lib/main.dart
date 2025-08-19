@@ -7,12 +7,13 @@ import 'package:qa_imageprocess/home_page.dart';
 import 'package:qa_imageprocess/pages/system_set.dart';
 import 'package:qa_imageprocess/pages/work.dart';
 import 'package:qa_imageprocess/pages/work_arrange.dart';
+import 'package:qa_imageprocess/tools/ai_service.dart';
 import 'package:qa_imageprocess/user_session.dart';
 import 'package:window_manager/window_manager.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // 仅在非 Web 环境（Windows/macOS/Linux）下初始化窗口管理
+  // 仅在非 Web 环境下初始化窗口管理
   if (!kIsWeb && Platform.isWindows) {
     await windowManager.ensureInitialized();
     WindowOptions windowOptions = WindowOptions(
@@ -26,6 +27,7 @@ void main() async {
     });
   }
   await UserSession().loadFromPrefs();
+  await AiService.initData();
   runApp(const MyApp());
 }
 

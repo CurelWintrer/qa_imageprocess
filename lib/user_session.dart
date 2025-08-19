@@ -14,7 +14,7 @@ class UserSession {
   int? id;
   String baseUrl = 'http://10.1.5.103:8080';
   String apiUrl = 'https://api.shubiaobiao.com/v1/chat/completions';
-  String apiKey = 'sk-D6lEXIuoNQ1aK6OWf0WD5jwKkhabovIyfxkHYVKPRqveGdj4';
+  String apiKey = 'sk-NHfglGBWKuzKXBH5kV55BtNJaxrjRp8lkvJ7qiWK3EqLitG4';
   String modelName='gemini-2.5-pro';
   String getRepetPath = '';
   String version='0.0.1';
