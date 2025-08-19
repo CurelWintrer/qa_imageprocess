@@ -264,10 +264,10 @@ class _WorkListState extends State<WorkList> {
             _buildSummaryCard(),
             SizedBox(width: 10),
             IconButton(
-                icon: const Icon(Icons.refresh),
-                onPressed: _loadInitialData,
-                tooltip: '刷新',
-            )
+              icon: const Icon(Icons.refresh),
+              onPressed: _loadInitialData,
+              tooltip: '刷新',
+            ),
           ],
         ),
 
@@ -412,7 +412,6 @@ class _WorkListState extends State<WorkList> {
               ],
             ),
 
-
             // 进度条
             _buildProgressBar(work),
 
@@ -429,6 +428,9 @@ class _WorkListState extends State<WorkList> {
                     child: const Text('放弃'),
                   ),
                 const SizedBox(width: 8),
+                if (work.state != 3)
+                  ElevatedButton(onPressed: () => {}, child: const Text('提交')),
+                const SizedBox(width: 8),
                 ElevatedButton(
                   onPressed: () => _viewWorkDetails(work),
                   child: const Text('查看'),
@@ -440,6 +442,8 @@ class _WorkListState extends State<WorkList> {
       ),
     );
   }
+
+  
 
   // 状态标签
   Widget _buildStatusBadge(int state) {
