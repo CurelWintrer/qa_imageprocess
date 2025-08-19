@@ -742,37 +742,7 @@ class _WorkManagerState extends State<WorkManager> {
   }
   
   void _viewWorkDetails(WorkModel work) {
-    // 这里可以跳转到任务详情页面
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('任务详情 - ${work.workID}'),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('管理员: ${work.admin.name}'),
-              Text('工作人员: ${work.worker.name}'),
-              Text('类目: ${work.category}'),
-              Text('采集类型: ${work.collectorType}'),
-              Text('问题方向: ${work.questionDirection}'),
-              Text('难度: ${work.difficulty}'),
-              Text('目标数量: ${work.targetCount}'),
-              Text('当前数量: ${work.currentCount}'),
-              Text('状态: ${WorkModel.getWorkState(work.state)}'),
-              if (work.returnReason != null) Text('退回原因: ${work.returnReason}'),
-              if (work.remark != null) Text('备注: ${work.remark}'),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('关闭'),
-          ),
-        ],
-      ),
-    );
+     Navigator.pushNamed(context, '/workDetail',arguments: {'workID':work.workID});
   }
   
 
