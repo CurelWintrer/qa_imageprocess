@@ -36,6 +36,8 @@ class _ImageDetailState extends State<ImageDetail> {
   late List<TextEditingController> _answerControllers; // 答案文本控制器
   late TextEditingController _questionController; // 题目文本控制器
   late int _selectedCorrectIndex; // 选择的正确答案索引
+  late TextEditingController _explanationController;
+  late TextEditingController _textCOTController;
 
   @override
   void initState() {
@@ -44,7 +46,7 @@ class _ImageDetailState extends State<ImageDetail> {
     _initEditControllers(); // 初始化控制器
   }
 
-  // 初始化编辑控制器
+  // 初始化（刷新）编辑控制器
   void _initEditControllers() {
     // 检查当前图片是否有问题数据
     final question =
@@ -56,6 +58,12 @@ class _ImageDetailState extends State<ImageDetail> {
     _questionController = TextEditingController(
       text: question?.questionText ?? '',
     );
+
+    _explanationController = TextEditingController(
+      text: question?.explanation ?? '',
+    );
+
+    _textCOTController = TextEditingController(text: question?.textCOT ?? '');
 
     // 初始化答案控制器
     _answerControllers = [];
@@ -158,6 +166,8 @@ class _ImageDetailState extends State<ImageDetail> {
         questionText: questionText,
         answers: answers,
         rightAnswerIndex: _selectedCorrectIndex,
+        explanation: _explanationController.text,
+        textCOT: _textCOTController.text,
       );
 
       if (updatedImage != null) {
@@ -261,6 +271,36 @@ class _ImageDetailState extends State<ImageDetail> {
         ),
         const SizedBox(height: 20),
 
+        //explanation编辑区
+        TextField(
+          controller: _explanationController,
+          decoration: InputDecoration(
+            labelText: '解析',
+            border: const OutlineInputBorder(),
+            suffixIcon: IconButton(
+              icon: const Icon(Icons.clear),
+              onPressed: () => _explanationController.clear(),
+            ),
+          ),
+          maxLines: 5,
+        ),
+        const SizedBox(height: 10),
+        //textCOT编辑区
+        TextField(
+          controller: _textCOTController,
+          decoration: InputDecoration(
+            labelText: '解题思维链',
+            border: const OutlineInputBorder(),
+            suffixIcon: IconButton(
+              icon: const Icon(Icons.clear),
+              onPressed: () => _textCOTController.clear(),
+            ),
+          ),
+          maxLines: 5,
+        ),
+
+        SizedBox(height: 10),
+
         // 操作按钮
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
@@ -296,109 +336,112 @@ class _ImageDetailState extends State<ImageDetail> {
 
   // 正确答案指示器
   Widget _buildAnswerIndicators(QuestionModel question) {
-  if (question.answers.isEmpty) return const SizedBox();
+    if (question.answers.isEmpty) return const SizedBox();
 
-  // 找到正确答案
-  final rightAnswerId = question.rightAnswer.answerID;
+    // 找到正确答案
+    final rightAnswerId = question.rightAnswer.answerID;
 
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      // 答案指示器
-      Wrap(
-        spacing: 4,
-        runSpacing: 4,
-        children: question.answers.asMap().entries.map((entry) {
-          final index = entry.key;
-          final answer = entry.value;
-          final isCorrect = answer.answerID == rightAnswerId;
-          final letter = String.fromCharCode(65 + index); // A, B, C...
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 答案指示器
+        Wrap(
+          spacing: 4,
+          runSpacing: 4,
+          children: question.answers.asMap().entries.map((entry) {
+            final index = entry.key;
+            final answer = entry.value;
+            final isCorrect = answer.answerID == rightAnswerId;
+            final letter = String.fromCharCode(65 + index); // A, B, C...
 
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: isCorrect ? Colors.green[100] : Colors.grey[100],
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(
-                color: isCorrect ? Colors.green : Colors.grey.shade300,
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: isCorrect ? Colors.green[100] : Colors.grey[100],
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(
+                  color: isCorrect ? Colors.green : Colors.grey.shade300,
+                ),
               ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  '$letter.',
-                  style: TextStyle(
-                    color: isCorrect ? Colors.green : Colors.black54,
-                    fontWeight: FontWeight.bold,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '$letter.',
+                    style: TextStyle(
+                      color: isCorrect ? Colors.green : Colors.black54,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 2),
-                Text(
-                  answer.answerText,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isCorrect ? Colors.green : Colors.black,
+                  const SizedBox(width: 2),
+                  Text(
+                    answer.answerText,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isCorrect ? Colors.green : Colors.black,
+                    ),
                   ),
-                ),
-              ],
-            ),
-          );
-        }).toList(),
-      ),
-      
-      const SizedBox(height: 16),
-      
-      // 解析部分
-      if (question.explanation?.isNotEmpty ?? false) ...[
-        const Text(
-          '解析:',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 14,
-            color: Colors.blue,
-          ),
+                ],
+              ),
+            );
+          }).toList(),
         ),
-        const SizedBox(height: 6),
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: Colors.blue[50],
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(
-            question.explanation!,
-            style: const TextStyle(fontSize: 13),
-          ),
-        ),
+
         const SizedBox(height: 16),
-      ],
-      
-      // 思维链部分
-      if (question.textCOT?.isNotEmpty ?? false) ...[
-        const Text(
-          '解题思维链：',
-          style: TextStyle(fontWeight: FontWeight.bold,fontSize: 14,color: Colors.purple),
-        ),
-        const SizedBox(height: 6),
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: Colors.purple[50],
-            borderRadius: BorderRadius.circular(8)
+
+        // 解析部分
+        if (question.explanation?.isNotEmpty ?? false) ...[
+          const Text(
+            '解析:',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: Colors.blue,
+            ),
           ),
-          child: Text(
-            question.textCOT!,
-            style: const TextStyle(fontSize: 13),
+          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.blue[50],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              question.explanation!,
+              style: const TextStyle(fontSize: 13),
+            ),
           ),
-        ),
-        
+          const SizedBox(height: 16),
+        ],
+
+        // 思维链部分
+        if (question.textCOT?.isNotEmpty ?? false) ...[
+          const Text(
+            '解题思维链：',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: Colors.purple,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.purple[50],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              question.textCOT!,
+              style: const TextStyle(fontSize: 13),
+            ),
+          ),
+        ],
       ],
-    ],
-  );
-}
+    );
+  }
 
   // 构建图片信息卡片（添加了InteractiveViewer缩放功能）
   Widget _buildImageCard() {
@@ -489,68 +532,63 @@ class _ImageDetailState extends State<ImageDetail> {
 
   // 执行AI操作（耗时任务）
   Future<void> _executeAITask() async {
-  // 显示加载弹窗
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (context) => const Center(
-      child: CircularProgressIndicator(),
-    ),
-  );
-
-  setState(() => _isProcessing = true);
-
-  try {
-    // 1. 调用AI服务
-    final qa = await AiService.getQA(currentImage);
-    if (qa == null) throw Exception('AI服务返回空数据');
-
-    debugPrint('AI生成结果: ${qa.toString()}');
-
-    // 2. 更新到后端API
-    final updatedImage = await _updateImageQA(
-      imageId: currentImage.imageID,
-      questionText: qa.question,
-      answers: qa.options,
-      rightAnswerIndex: qa.correctAnswer,
-      explanation: qa.explanation,
-      textCOT: qa.textCOT,
+    // 显示加载弹窗
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
     );
 
-    
+    setState(() => _isProcessing = true);
 
-    if (updatedImage == null) throw Exception('图片更新失败');
+    try {
+      // 1. 调用AI服务
+      final qa = await AiService.getQA(currentImage);
+      if (qa == null) throw Exception('AI服务返回空数据');
 
-    // 3. 更新UI状态
-    if (mounted) {
-      setState(() {
-        currentImage = updatedImage;
-        _initEditControllers();
-        _isEditing = false;
-        
-      });
-      widget.onImageUpdated(updatedImage);
-    }
+      debugPrint('AI生成结果: ${qa.toString()}');
 
-    // 4. 显示成功提示
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('AI处理完成')),
-    );
-  } catch (e, stackTrace) {
-    debugPrint('AI处理错误: $e\n$stackTrace');
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('处理失败: ${e.toString()}')),
+      // 2. 更新到后端API
+      final updatedImage = await _updateImageQA(
+        imageId: currentImage.imageID,
+        questionText: qa.question,
+        answers: qa.options,
+        rightAnswerIndex: qa.correctAnswer,
+        explanation: qa.explanation,
+        textCOT: qa.textCOT,
       );
-    }
-  } finally {
-    // 关闭加载弹窗
-    if (mounted) {
-      Navigator.of(context, rootNavigator: true).pop();
-      setState(() => _isProcessing = false);
+
+      if (updatedImage == null) throw Exception('图片更新失败');
+
+      // 3. 更新UI状态
+      if (mounted) {
+        setState(() {
+          currentImage = updatedImage;
+          _initEditControllers();
+          _isEditing = false;
+        });
+        widget.onImageUpdated(updatedImage);
+      }
+
+      // 4. 显示成功提示
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('AI处理完成')));
+    } catch (e, stackTrace) {
+      debugPrint('AI处理错误: $e\n$stackTrace');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('处理失败: ${e.toString()}')));
+      }
+    } finally {
+      // 关闭加载弹窗
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+        setState(() => _isProcessing = false);
+      }
     }
   }
-}
 
   // 构建信息列（右侧/下方内容）
   Widget _buildInfoColumn() {
@@ -754,8 +792,8 @@ class _ImageDetailState extends State<ImageDetail> {
       'questionText': questionText,
       'answers': answers,
       'rightAnswerIndex': rightAnswerIndex,
-      'explanation':explanation,
-      'textCOT':textCOT,
+      'explanation': explanation,
+      'textCOT': textCOT,
     });
 
     try {
