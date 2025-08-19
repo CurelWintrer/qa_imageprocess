@@ -296,55 +296,109 @@ class _ImageDetailState extends State<ImageDetail> {
 
   // 正确答案指示器
   Widget _buildAnswerIndicators(QuestionModel question) {
-    if (question.answers.isEmpty) return const SizedBox();
+  if (question.answers.isEmpty) return const SizedBox();
 
-    // 找到正确答案
-    final rightAnswerId = question.rightAnswer.answerID;
+  // 找到正确答案
+  final rightAnswerId = question.rightAnswer.answerID;
 
-    return Wrap(
-      spacing: 4,
-      runSpacing: 4,
-      children: question.answers.asMap().entries.map((entry) {
-        final index = entry.key;
-        final answer = entry.value;
-        final isCorrect = answer.answerID == rightAnswerId;
-        final letter = String.fromCharCode(65 + index); // A, B, C...
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      // 答案指示器
+      Wrap(
+        spacing: 4,
+        runSpacing: 4,
+        children: question.answers.asMap().entries.map((entry) {
+          final index = entry.key;
+          final answer = entry.value;
+          final isCorrect = answer.answerID == rightAnswerId;
+          final letter = String.fromCharCode(65 + index); // A, B, C...
 
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-          decoration: BoxDecoration(
-            color: isCorrect ? Colors.green[100] : Colors.grey[100],
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(
-              color: isCorrect ? Colors.green : Colors.grey.shade300,
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: isCorrect ? Colors.green[100] : Colors.grey[100],
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(
+                color: isCorrect ? Colors.green : Colors.grey.shade300,
+              ),
             ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '$letter.',
-                style: TextStyle(
-                  color: isCorrect ? Colors.green : Colors.black54,
-                  fontWeight: FontWeight.bold,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '$letter.',
+                  style: TextStyle(
+                    color: isCorrect ? Colors.green : Colors.black54,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 2),
-              Text(
-                answer.answerText,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isCorrect ? Colors.green : Colors.black,
+                const SizedBox(width: 2),
+                Text(
+                  answer.answerText,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isCorrect ? Colors.green : Colors.black,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+      
+      const SizedBox(height: 16),
+      
+      // 解析部分
+      if (question.explanation?.isNotEmpty ?? false) ...[
+        const Text(
+          '解析:',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+            color: Colors.blue,
           ),
-        );
-      }).toList(),
-    );
-  }
+        ),
+        const SizedBox(height: 6),
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.blue[50],
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            question.explanation!,
+            style: const TextStyle(fontSize: 13),
+          ),
+        ),
+        const SizedBox(height: 16),
+      ],
+      
+      // 思维链部分
+      if (question.textCOT?.isNotEmpty ?? false) ...[
+        const Text(
+          '解题思维链：',
+          style: TextStyle(fontWeight: FontWeight.bold,fontSize: 14,color: Colors.purple),
+        ),
+        const SizedBox(height: 6),
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.purple[50],
+            borderRadius: BorderRadius.circular(8)
+          ),
+          child: Text(
+            question.textCOT!,
+            style: const TextStyle(fontSize: 13),
+          ),
+        ),
+        
+      ],
+    ],
+  );
+}
 
   // 构建图片信息卡片（添加了InteractiveViewer缩放功能）
   Widget _buildImageCard() {
@@ -459,6 +513,8 @@ class _ImageDetailState extends State<ImageDetail> {
       questionText: qa.question,
       answers: qa.options,
       rightAnswerIndex: qa.correctAnswer,
+      explanation: qa.explanation,
+      textCOT: qa.textCOT,
     );
 
     
@@ -683,6 +739,8 @@ class _ImageDetailState extends State<ImageDetail> {
   Future<ImageModel?> _updateImageQA({
     required int imageId,
     required String questionText,
+    String? explanation,
+    String? textCOT,
     required List<String> answers,
     required int rightAnswerIndex,
   }) async {
@@ -696,6 +754,8 @@ class _ImageDetailState extends State<ImageDetail> {
       'questionText': questionText,
       'answers': answers,
       'rightAnswerIndex': rightAnswerIndex,
+      'explanation':explanation,
+      'textCOT':textCOT,
     });
 
     try {

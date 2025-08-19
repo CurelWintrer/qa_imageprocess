@@ -652,15 +652,15 @@ class _WorkManagerState extends State<WorkManager> {
   // 难度徽章
   Widget _buildDifficultyBadge(int difficulty) {
     final colors = {
-      1: Colors.green,
-      2: Colors.orange,
-      3: Colors.red,
+      0: Colors.green,
+      1: Colors.orange,
+      2: Colors.red,
     };
     
     final labels = {
-      1: '简单',
-      2: '中等',
-      3: '困难',
+      0: '简单',
+      1: '中等',
+      2: '困难',
     };
     
     return Container(

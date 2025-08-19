@@ -5,12 +5,16 @@ class QuestionModel {
   final String questionText;
   final AnswerModel rightAnswer; // 修改为AnswerModel类型
   final List<AnswerModel> answers;
+  final String? explanation;
+  final String? textCOT;
 
   QuestionModel({
     required this.questionID,
     required this.questionText,
     required this.rightAnswer, // 使用rightAnswer而非rightAnswerID
     required this.answers,
+    this.explanation,
+    this.textCOT,
   });
 
   // 修改工厂构造函数，解析rightAnswer为AnswerModel
@@ -24,6 +28,8 @@ class QuestionModel {
     answers: (json['answers'] as List<dynamic>?)
         ?.map((answerJson) => AnswerModel.fromJson(answerJson as Map<String, dynamic>? ?? {}))
         .toList() ?? [],
+    explanation: json['explanation'],
+    textCOT: json['textCOT']
   );
 }
 
@@ -38,6 +44,8 @@ class QuestionModel {
       'questionText': questionText,
       'rightAnswer': rightAnswer.toJson(), // 返回rightAnswer的toJson
       'answers': answersJson,
+      'explanation':explanation??'',
+      'textCOT':textCOT??'',
     };
   }
 

@@ -89,7 +89,7 @@ class _WorkArrangeState extends State<WorkArrange> {
     }
   }
 
-   @override
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('任务分配')),
@@ -97,7 +97,7 @@ class _WorkArrangeState extends State<WorkArrange> {
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage.isNotEmpty
           ? Center(child: Text(_errorMessage))
-          : _buildMainLayout()
+          : _buildMainLayout(),
     );
   }
 
@@ -196,34 +196,35 @@ class _WorkArrangeState extends State<WorkArrange> {
   // 分配任务方法
   Future<void> _assignTask() async {
     if (_selectedUser == null) return;
-    
+
     // 验证所有选项都已选择
-    if (_selectedCategoryId == null || 
-        _selectedCollectorTypeId == null || 
+    if (_selectedCategoryId == null ||
+        _selectedCollectorTypeId == null ||
         _selectedQuestionDirectionId == null ||
         _selectedDifficulty == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请选择所有必填参数（包括难度）')),
-      );
+      print('选择的难度：$_selectedDifficulty');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('请选择所有必填参数（包括难度）')));
       return;
     }
-    
+
     // 验证任务数量
     final count = int.tryParse(_countController.text);
     if (count == null || count <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请输入有效的任务数量（大于0）')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('请输入有效的任务数量（大于0）')));
       return;
     }
-    
+
     // 准备API请求
     final url = Uri.parse('${UserSession().baseUrl}/api/works/assign');
     final headers = {
       'Authorization': 'Bearer ${UserSession().token}',
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
     };
-    
+
     final body = json.encode({
       "workerID": _selectedUser!.userID,
       "category": _selectedCategoryName, // 注意API要求传递名称而不是ID
@@ -232,12 +233,14 @@ class _WorkArrangeState extends State<WorkArrange> {
       "targetCount": count,
       "difficulty": _selectedDifficulty,
     });
-    
+
+    print('请求参数：$body');
+
     try {
       final response = await http.post(url, headers: headers, body: body);
 
       print(response.body);
-      
+
       if (response.statusCode == 200) {
         final result = json.decode(response.body);
         if (result['code'] == 200) {
@@ -249,7 +252,7 @@ class _WorkArrangeState extends State<WorkArrange> {
               duration: const Duration(seconds: 4),
             ),
           );
-          
+
           // 重置表单（可选）
           _resetForm();
         } else {
@@ -273,15 +276,12 @@ class _WorkArrangeState extends State<WorkArrange> {
     } catch (e) {
       // 网络异常
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('网络错误: $e'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('网络错误: $e'), backgroundColor: Colors.red),
       );
     }
   }
 
-   // 重置表单
+  // 重置表单
   void _resetForm() {
     setState(() {
       _selectedCategoryId = null;
@@ -294,7 +294,6 @@ class _WorkArrangeState extends State<WorkArrange> {
       _countController.text = '10';
     });
   }
-
 
   // 通用API请求方法
   Future<List<dynamic>> _fetchData(String endpoint) async {
