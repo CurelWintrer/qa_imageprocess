@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/services.dart';
 import 'dart:io';
 
 import 'package:qa_imageprocess/user_session.dart';
@@ -61,6 +62,14 @@ class _SystemSetState extends State<SystemSet> {
         );
       }
     }
+  }
+
+    // 新增：复制Token到剪切板
+  void _copyTokenToClipboard() {
+    Clipboard.setData(ClipboardData(text: UserSession().token??''));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Token已复制到剪切板')),
+    );
   }
 
   void _saveSettings() async {
@@ -197,6 +206,54 @@ class _SystemSetState extends State<SystemSet> {
                             label: '模型名称',
                             hint: 'gemini-2.5-pro',
                             icon: Icons.model_training,
+                          ),
+                          // 新增Token显示区域 ------------------------
+                          const SizedBox(height: 15),
+                          Text(
+                            '当前Token',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w500,
+                              color: Colors.blueGrey[700],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 12,
+                              horizontal: 16,
+                            ),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey[300]!),
+                              borderRadius: BorderRadius.circular(8),
+                              color: Colors.grey[50],
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    UserSession().token??'', // 直接显示token
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 2,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.grey[800],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Tooltip(
+                                  message: '复制Token',
+                                  child: IconButton(
+                                    icon: Icon(
+                                      Icons.copy_outlined,
+                                      size: 20,
+                                      color: Theme.of(context).primaryColor,
+                                    ),
+                                    onPressed: _copyTokenToClipboard,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),

@@ -149,7 +149,7 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('工作详情 #${widget.workID}'), actions: [
+      appBar: AppBar(title: Text('Work #${widget.workID}'), actions: [
         ],
       ),
       body: _buildBody(),

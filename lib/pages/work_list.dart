@@ -221,16 +221,16 @@ class _WorkListState extends State<WorkList> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('工作列表'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadInitialData,
-            tooltip: '刷新',
-          ),
-        ],
-      ),
+      // appBar: AppBar(
+      //   title: const Text('工作列表'),
+      //   actions: [
+      //     IconButton(
+      //       icon: const Icon(Icons.refresh),
+      //       onPressed: _loadInitialData,
+      //       tooltip: '刷新',
+      //     ),
+      //   ],
+      // ),
       body: _buildBody(),
     );
   }
@@ -259,7 +259,20 @@ class _WorkListState extends State<WorkList> {
     return Column(
       children: [
         // 顶部统计信息
-        _buildSummaryCard(),
+        Row(
+          children: [
+            _buildSummaryCard(),
+            Spacer(),
+            Padding(
+              padding: EdgeInsets.only(right: 20),
+              child: IconButton(
+                icon: const Icon(Icons.refresh),
+                onPressed: _loadInitialData,
+                tooltip: '刷新',
+              ),
+            ),
+          ],
+        ),
 
         // 工作列表
         Expanded(
@@ -345,89 +358,92 @@ class _WorkListState extends State<WorkList> {
 
   // 工作项卡片
   Widget _buildWorkItem(WorkModel work) {
-  return Card(
-    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-    elevation: 2,
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 头部：ID和状态
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '任务 ID: ${work.workID}',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 头部：ID和状态
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '任务 ID: ${work.workID}',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              _buildStatusBadge(work.state),
-            ],
-          ),
+                _buildStatusBadge(work.state),
+              ],
+            ),
 
-          const SizedBox(height: 12),
+            const SizedBox(height: 12),
 
-          // 任务信息 - 改为双列布局
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 左列：管理员和类目
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildWorkInfoRow('管理员', work.admin.name),
-                    _buildWorkInfoRow('类目', work.category),
-                  ],
+            // 任务信息 - 改为双列布局
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 左列：管理员和类目
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildWorkInfoRow('管理员', work.admin.name),
+                      _buildWorkInfoRow('类目', work.category),
+                    ],
+                  ),
                 ),
-              ),
-              
-              // 右列：采集类型、问题方向和难度
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    _buildWorkInfoRow('采集类型', work.collectorType),
-                    _buildWorkInfoRow('问题方向', work.questionDirection),
-                    _buildWorkInfoRow('难度', WorkModel.getDifficulty(work.difficulty)),
-                  ],
+
+                // 右列：采集类型、问题方向和难度
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      _buildWorkInfoRow('采集类型', work.collectorType),
+                      _buildWorkInfoRow('问题方向', work.questionDirection),
+                      _buildWorkInfoRow(
+                        '难度',
+                        WorkModel.getDifficulty(work.difficulty),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
 
-          const SizedBox(height: 12),
+            const SizedBox(height: 12),
 
-          // 进度条
-          _buildProgressBar(work),
+            // 进度条
+            _buildProgressBar(work),
 
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
 
-          // 操作按钮
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              if (work.state == 0 || work.state == 1) // 未采集或正在采集可放弃
-                TextButton(
-                  onPressed: () => _showAbandonDialog(work.workID),
-                  style: TextButton.styleFrom(foregroundColor: Colors.red),
-                  child: const Text('放弃'),
+            // 操作按钮
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (work.state == 0 || work.state == 1) // 未采集或正在采集可放弃
+                  TextButton(
+                    onPressed: () => _showAbandonDialog(work.workID),
+                    style: TextButton.styleFrom(foregroundColor: Colors.red),
+                    child: const Text('放弃'),
+                  ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: () => _viewWorkDetails(work),
+                  child: const Text('查看'),
                 ),
-              const SizedBox(width: 8),
-              ElevatedButton(
-                onPressed: () => _viewWorkDetails(work),
-                child: const Text('查看'),
-              ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   // 状态标签
   Widget _buildStatusBadge(int state) {
@@ -529,6 +545,10 @@ class _WorkListState extends State<WorkList> {
   // 查看任务详情（占位函数）
   void _viewWorkDetails(WorkModel work) {
     // TODO: 实现查看任务详情功能
-    Navigator.pushNamed(context, '/workDetail',arguments: {'workID':work.workID});
+    Navigator.pushNamed(
+      context,
+      '/workDetail',
+      arguments: {'workID': work.workID},
+    );
   }
 }

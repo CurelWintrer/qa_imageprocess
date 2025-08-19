@@ -17,7 +17,7 @@ void main() async {
   if (!kIsWeb && Platform.isWindows) {
     await windowManager.ensureInitialized();
     WindowOptions windowOptions = WindowOptions(
-      minimumSize: Size(1400, 850),
+      minimumSize: Size(1380, 780),
       center: true,
     );
 
