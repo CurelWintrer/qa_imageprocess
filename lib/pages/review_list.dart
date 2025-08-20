@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:qa_imageprocess/model/checkImageListState.dart';
-import 'package:qa_imageprocess/model/checkImageList_model.dart';
+import 'package:qa_imageprocess/model/work_model.dart';
 import 'package:qa_imageprocess/user_session.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -15,55 +14,57 @@ class ReviewList extends StatefulWidget {
 class _ReviewListState extends State<ReviewList> {
   String _token = UserSession().token ?? '';
   String _baseUrl = UserSession().baseUrl;
-  final int _pageSize = 10;
+  final int _pageSize = 20;
   int _currentPage = 1;
   int _totalPages = 1;
   int _totalTasks = 0;
-  
+
   int _pendingCount = 0;
   int _inProgressCount = 0;
   int _completedCount = 0;
-  
+
   bool _isLoading = false;
-  List<CheckimagelistModel> _taskList = [];
+  List<WorkModel> _works = [];
 
   @override
   void initState() {
     super.initState();
-    _fetchCheckList();
+    _fetchWorks();
   }
 
-  Future<void> _fetchCheckList() async {
+  Future<void> _fetchWorks() async {
     if (_isLoading) return;
-    
     setState(() {
       _isLoading = true;
     });
-
     try {
-      final url = Uri.parse('$_baseUrl/api/check/list?page=$_currentPage&pageSize=$_pageSize');
       final response = await http.get(
-        url,
-        headers: {'Authorization': 'Bearer $_token'},
+        Uri.parse(
+          '$_baseUrl/api/works/inspection-tasks?page=$_currentPage&pageSize=$_pageSize',
+        ),
+        headers: {
+          'Authorization': 'Bearer ${UserSession().token ?? ''}',
+          'Content-Type': 'application/json',
+        },
       );
-
+      print(response.body);
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body)['data'];
-        final List<dynamic> items = data['data'];
-        
-        // 更新任务列表
+        final List<dynamic> items = data['works'];
         setState(() {
-          _taskList.addAll(items.map((item) => CheckimagelistModel.fromJson(item)).toList());
+          // 重置第一页数据，追加后续分页数据
+          if (_currentPage == 1) _works.clear();
+          _works.addAll(items.map((item) => WorkModel.fromJson(item)).toList());
           _totalPages = data['totalPages'];
-          _totalTasks = data['total'];
-          
+          _totalTasks = data['totalItems'];
+
           // 重置状态计数器
           _pendingCount = 0;
           _inProgressCount = 0;
           _completedCount = 0;
-          
+
           // 统计各种状态的数量
-          for (var task in _taskList) {
+          for (var task in _works) {
             switch (task.state) {
               case 0:
                 _pendingCount++;
@@ -77,44 +78,40 @@ class _ReviewListState extends State<ReviewList> {
             }
           }
         });
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('任务加载成功')));
       }
     } catch (e) {
-      // 错误处理
-      print('获取任务列表失败: $e');
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('任务加载错误$e')));
     }
   }
 
   void _refreshList() {
     setState(() {
       _currentPage = 1;
-      _taskList.clear();
     });
-    _fetchCheckList();
+    _fetchWorks();
   }
 
+  // 修复分页参数自增逻辑
   void _loadNextPage() {
     if (_currentPage < _totalPages && !_isLoading) {
-      setState(() {
-        _currentPage++;
-      });
-      _fetchCheckList();
+      setState(() => _currentPage++);
+      _fetchWorks();
     }
   }
 
   void _startChecking(int taskId) {
     // TODO: 实现开始检查逻辑
     print('开始检查任务：$taskId');
-
   }
 
   void _abandonTask(int taskId) {
     // TODO: 实现放弃任务逻辑
     print('放弃任务：$taskId');
-
   }
 
   @override
@@ -131,9 +128,21 @@ class _ReviewListState extends State<ReviewList> {
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
                       _buildSummaryCard('总任务数', '$_totalTasks', Icons.list),
-                      _buildSummaryCard('未检查', '$_pendingCount', Icons.pending_actions),
-                      _buildSummaryCard('检查中', '$_inProgressCount', Icons.hourglass_top),
-                      _buildSummaryCard('已完成', '$_completedCount', Icons.check_circle),
+                      _buildSummaryCard(
+                        '未检查',
+                        '$_pendingCount',
+                        Icons.pending_actions,
+                      ),
+                      _buildSummaryCard(
+                        '检查中',
+                        '$_inProgressCount',
+                        Icons.hourglass_top,
+                      ),
+                      _buildSummaryCard(
+                        '已完成',
+                        '$_completedCount',
+                        Icons.check_circle,
+                      ),
                     ],
                   ),
                 ),
@@ -153,33 +162,51 @@ class _ReviewListState extends State<ReviewList> {
             ),
           ),
           Expanded(
-            child: _isLoading && _taskList.isEmpty
-                ? const Center(child: CircularProgressIndicator())
-                : _taskList.isEmpty
-                    ? const Center(child: Text('没有质检任务'))
-                    : Column(
-                        children: [
-                          Expanded(
-                            child: ListView.builder(
-                              itemCount: _taskList.length + (_isLoading ? 1 : 0),
-                              itemBuilder: (context, index) {
-                                if (index == _taskList.length) {
-                                  return const Center(child: Padding(
-                                    padding: EdgeInsets.all(16),
-                                    child: CircularProgressIndicator(),
-                                  ));
-                                }
-                                
-                                final task = _taskList[index];
-                                return _buildCheckListItem(task);
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
+            child: NotificationListener<ScrollNotification>(
+              onNotification: (notification) {
+                // 当滚动到底部且非加载中时触发新页加载
+                if (notification is ScrollEndNotification &&
+                    notification.metrics.extentAfter == 0 &&
+                    !_isLoading &&
+                    _currentPage < _totalPages) {
+                  _loadNextPage();
+                }
+                return true;
+              },
+              child: _isLoading && _works.isEmpty
+                  ? const Center(child: CircularProgressIndicator())
+                  : _works.isEmpty
+                  ? const Center(child: Text('没有质检任务'))
+                  : ListView.builder(
+                      itemCount: _works.length + 1, // +1 用于显示底部加载指示器
+                      itemBuilder: (context, index) {
+                        // 显示底部分页加载状态
+                        if (index == _works.length) {
+                          return _buildLoadMoreIndicator();
+                        }
+                        return _buildWorkItem(_works[index]);
+                      },
+                    ),
+            ),
           ),
         ],
       ),
+    );
+  }
+
+  // 新增底部加载指示器组件
+  Widget _buildLoadMoreIndicator() {
+    // 无更多数据时显示提示
+    if (_currentPage >= _totalPages) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 16),
+        child: Center(child: Text('没有更多数据')),
+      );
+    }
+    // 加载中显示进度条
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 16),
+      child: Center(child: CircularProgressIndicator()),
     );
   }
 
@@ -203,114 +230,148 @@ class _ReviewListState extends State<ReviewList> {
     );
   }
 
-  Widget _buildCheckListItem(CheckimagelistModel task) {
+  Widget _buildWorkItem(WorkModel work) {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      elevation: 2,
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 任务信息
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '任务 ${task.checkImageListID}',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+            // 头部：ID和状态
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '任务 ID: ${work.workID}',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
-                  const SizedBox(height: 8),
-                  Row(
+                ),
+                _buildStatusBadge(work.state),
+              ],
+            ),
+
+            const SizedBox(height: 2),
+
+            // 任务信息 - 改为双列布局
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 左列：管理员和类目
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('${task.imageCount}张图片'),
-                      const SizedBox(width: 16),
-                      Text('已检查${task.accessCount}张'),
+                      _buildWorkInfoRow('管理员', work.admin.name),
+                      _buildWorkInfoRow('类目', work.category),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '创建时间: ${task.createdAt.substring(0, 10)}',
-                    style: const TextStyle(color: Colors.grey),
+                ),
+
+                // 右列：采集类型、问题方向和难度
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      _buildWorkInfoRow('采集类型', work.collectorType),
+                      _buildWorkInfoRow('问题方向', work.questionDirection),
+                      _buildWorkInfoRow(
+                        '难度',
+                        WorkModel.getDifficulty(work.difficulty),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            
-            // 状态和控制按钮
-            Column(
+
+            const SizedBox(height: 2),
+            // 操作按钮
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                // 状态标签
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Checkimageliststate.getCheckImageListStateColor(task.state)
-                        .withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: Checkimageliststate.getCheckImageListStateColor(task.state),
-                      width: 1,
-                    ),
-                  ),
-                  child: Text(
-                    Checkimageliststate.getCheckImageListState(task.state),
-                    style: TextStyle(
-                      color: Checkimageliststate.getCheckImageListStateColor(task.state),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                  ),
+                // if (work.state == 0 || work.state == 1)
+                TextButton(
+                  onPressed: () => _showReturnDialog(work.workID),
+                  style: TextButton.styleFrom(foregroundColor: Colors.red),
+                  child: const Text('打回'),
                 ),
-                
-                const SizedBox(height: 10),
-                
-                // 按钮组
-                Row(
-                  children: [
-                    // 检查按钮（显示在未完成状态）
-                    if (task.state != 2)
-                      ElevatedButton(
-                        onPressed: () => _startChecking(task.checkImageListID),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: Text(
-                          task.state == 0 ? '开始检查' : '继续检查',
-                          style: const TextStyle(fontSize: 14),
-                        ),
-                      ),
-                    
-                    // 放弃按钮（显示在检查中状态）
-                    if (task.state !=2)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 8.0),
-                        child: OutlinedButton(
-                          onPressed: () => _abandonTask(task.checkImageListID),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            side: const BorderSide(color: Colors.red),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          child: const Text(
-                            '放弃',
-                            style: TextStyle(fontSize: 14, color: Colors.red),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
+                const SizedBox(width: 8),
+                if (work.state != 3)
+                  ElevatedButton(onPressed: () => {}, child: const Text('通过')),
+                const SizedBox(width: 8),
+                ElevatedButton(onPressed: () => {}, child: const Text('检查')),
               ],
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // 放弃任务确认对话框
+  void _showReturnDialog(int workID) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('确认打回任务'),
+          content: const Text('确定要打回这个任务吗？此操作不可撤销。'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('确认打回'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // 状态标签
+  Widget _buildStatusBadge(int state) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: WorkModel.getWorkStateColor(state).withOpacity(0.2),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: WorkModel.getWorkStateColor(state)),
+      ),
+      child: Text(
+        WorkModel.getWorkState(state),
+        style: TextStyle(
+          color: WorkModel.getWorkStateColor(state),
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  // 任务信息行
+  Widget _buildWorkInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(
+              '$label:',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          Expanded(child: Text(value)),
+        ],
       ),
     );
   }

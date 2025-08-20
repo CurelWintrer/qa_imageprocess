@@ -367,7 +367,7 @@ class _WorkListState extends State<WorkList> {
               ],
             ),
 
-            const SizedBox(height: 12),
+            const SizedBox(height: 2),
 
             // 任务信息 - 改为双列布局
             Row(
@@ -404,7 +404,7 @@ class _WorkListState extends State<WorkList> {
             // 进度条
             _buildProgressBar(work),
 
-            const SizedBox(height: 5),
+            const SizedBox(height: 2),
 
             // 操作按钮
             Row(

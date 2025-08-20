@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:qa_imageprocess/UserAccount/login_page.dart';
 import 'package:qa_imageprocess/home_page.dart';
+import 'package:qa_imageprocess/pages/review.dart';
 import 'package:qa_imageprocess/pages/system_set.dart';
 import 'package:qa_imageprocess/pages/work.dart';
 import 'package:qa_imageprocess/pages/work_arrange.dart';
@@ -49,14 +50,22 @@ class MyApp extends StatelessWidget {
       routes: {
         '/home': (context) => const HomePage(),
         '/login': (context) => LoginPage(),
-        '/systemSet': (context) => SystemSet(),
+        '/systemSet': (context) => SystemSet(),   //系统设置
+        //工作详情
         '/workDetail': (context) {
           final args =
               ModalRoute.of(context)!.settings.arguments
                   as Map<String, dynamic>;
           return WorkDetailScreen(workID: args['workID']);
         },
-        '/workArrange': (context) => WorkArrange(),
+        //质检界面
+        '/review': (context) {
+          final args =
+              ModalRoute.of(context)!.settings.arguments
+                  as Map<String, dynamic>;
+          return Review(workID: args['workID']);
+        },
+        '/workArrange': (context) => WorkArrange(),//任务分配
       },
     );
   }

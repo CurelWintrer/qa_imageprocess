@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
 class Review extends StatefulWidget {
-  const Review({super.key});
+  final int workID;
+  const Review({super.key,required this.workID});
 
   @override
   State<Review> createState() => _ReviewState();

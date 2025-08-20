@@ -1,6 +1,7 @@
 // 添加必要的导入
 import 'package:flutter/material.dart';
 import 'package:qa_imageprocess/navi/app_navigation_drawer.dart';
+import 'package:qa_imageprocess/pages/export.dart';
 import 'package:qa_imageprocess/pages/management_page.dart';
 import 'package:qa_imageprocess/pages/review_list.dart';
 import 'package:qa_imageprocess/pages/work.dart';
@@ -111,6 +112,7 @@ class _HomePageState extends State<HomePage>
     if (isAdmin) {
       basePages.add({'title': '账号管理', 'page': ManagementPage(key: _pageKeys[2])});
       basePages.add({'title':'任务管理','page':WorkManager(key: _pageKeys[3])});
+      basePages.add({'title':'导出','page':Export(key: _pageKeys[4],)});
     }
 
     // 更新页面和标题列表
