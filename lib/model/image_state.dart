@@ -14,14 +14,12 @@ class ImageState {
       case 1:
         return '正在检查';
       case 2:
-        return '正在审核';
-      case 3:
         return '质检打回';
-      case 4:
+      case 3:
         return '检查通过';
-      case 5:
+      case 4:
         return '已交付';
-      case 6:
+      case 5:
         return '废弃';
       default:
         return '未知状态';
@@ -37,13 +35,11 @@ class ImageState {
       case 2:
         return Colors.orange;
       case 3:
-        return Colors.deepOrange;
-      case 4:
         return Colors.green;
-      case 5:
+      case 4:
         return Colors.black;
-      case 6:
-        return Colors.redAccent;
+      case 5:
+        return Colors.red;
       default:
         return Colors.grey;
     }

@@ -6,19 +6,14 @@ import 'package:qa_imageprocess/user_session.dart';
 
 class WorkState {
   /// 提交工作任务并更新状态
-  /// 
-  /// 主要变更：成功回调中携带更新后的WorkModel对象
-  /// 
-  /// 参数:
-  ///   [context] - 当前BuildContext（用于显示SnackBar）
-  ///   [work] - 要更新的任务模型
-  ///   [state] - 要设置的新状态值
-  ///   [onSuccess] - 操作成功时的回调，携带更新后的WorkModel
-  ///   [onError] - 操作失败时的回调，携带异常信息
+
   static Future<void> submitWork(
     BuildContext context,
     WorkModel work,
-    int state, {
+    int state, 
+    {
+    String? returnReason,
+    String? remark,
     ValueChanged<WorkModel>? onSuccess,
     ValueChanged<Exception>? onError,
   }) async {
@@ -29,7 +24,11 @@ class WorkState {
           'Authorization': 'Bearer ${UserSession().token ?? ''}',
           'Content-Type': 'application/json',
         },
-        body: jsonEncode({'state': state}),
+        body: jsonEncode({
+          'state': state,
+          'returnReason':returnReason,
+          'remark':remark,
+        }),
       );
 
       print('API响应: ${response.body}');

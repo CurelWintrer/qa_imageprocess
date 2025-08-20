@@ -297,15 +297,15 @@ class _ReviewListState extends State<ReviewList> {
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 // if (work.state == 0 || work.state == 1)
-                TextButton(
-                  onPressed: () => _showReturnDialog(work.workID),
-                  style: TextButton.styleFrom(foregroundColor: Colors.red),
-                  child: const Text('打回'),
-                ),
-                const SizedBox(width: 8),
-                if (work.state != 3)
-                  ElevatedButton(onPressed: () => {}, child: const Text('通过')),
-                const SizedBox(width: 8),
+                // TextButton(
+                //   onPressed: () => _showReturnDialog(work.workID),
+                //   style: TextButton.styleFrom(foregroundColor: Colors.red),
+                //   child: const Text('打回'),
+                // ),
+                // const SizedBox(width: 8),
+                // if (work.state != 3)
+                //   ElevatedButton(onPressed: () => {}, child: const Text('通过')),
+                // const SizedBox(width: 8),
                 ElevatedButton(onPressed: () => {_startChecking(work)}, child: const Text('检查')),
               ],
             ),
