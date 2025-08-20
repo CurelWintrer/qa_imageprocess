@@ -39,7 +39,7 @@ class _WorkManagerState extends State<WorkManager> {
   int _pageSize = 10;
   int _totalItems = 0;
   int _totalPages = 1;
-  
+
   // 滚动控制器
   final ScrollController _scrollController = ScrollController();
 
@@ -48,20 +48,20 @@ class _WorkManagerState extends State<WorkManager> {
     super.initState();
     _fetchCategories(); // 初始化时获取类目
     _fetchAllUsers();
-    
+
     // 添加滚动监听器
     _scrollController.addListener(_onScroll);
   }
-  
+
   @override
   void dispose() {
     _scrollController.dispose();
     super.dispose();
   }
-  
+
   // 滚动监听器
   void _onScroll() {
-    if (_scrollController.position.pixels >= 
+    if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
       if (!_isLoadingMore && _hasMore) {
         _loadMoreWorks();
@@ -74,9 +74,9 @@ class _WorkManagerState extends State<WorkManager> {
     return Scaffold(
       body: Column(
         children: [
-          _buildTitleSelector(), 
-          Expanded(child: _buildWorkList())
-        ]
+          _buildTitleSelector(),
+          Expanded(child: _buildWorkList()),
+        ],
       ),
     );
   }
@@ -98,37 +98,38 @@ class _WorkManagerState extends State<WorkManager> {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final isWideScreen = constraints.maxWidth > 800;
-          
+
           final children = [
             _buildCategoryDropdown(),
             _buildCollectorTypeDropdown(),
             _buildQuestionDirectionDropdown(),
             _buildUserDropdown(),
             _buildSearchButton(),
-            _buildWorkButton()
+            _buildWorkButton(),
           ];
-          
+
           if (isWideScreen) {
             return Row(
-              children: children.map((child) => 
-                Expanded(flex: 1, child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                  child: child,
-                ))
-              ).toList(),
+              children: children
+                  .map(
+                    (child) => Expanded(
+                      flex: 1,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                        child: child,
+                      ),
+                    ),
+                  )
+                  .toList(),
             );
           } else {
-            return Wrap(
-              spacing: 16,
-              runSpacing: 16,
-              children: children,
-            );
+            return Wrap(spacing: 16, runSpacing: 16, children: children);
           }
         },
       ),
     );
   }
-  
+
   Widget _buildCategoryDropdown() {
     return _buildLevelDropdown(
       value: _selectedCategoryId,
@@ -146,7 +147,7 @@ class _WorkManagerState extends State<WorkManager> {
       },
     );
   }
-  
+
   Widget _buildCollectorTypeDropdown() {
     return _buildLevelDropdown(
       value: _selectedCollectorTypeId,
@@ -165,7 +166,7 @@ class _WorkManagerState extends State<WorkManager> {
       enabled: _selectedCategoryId != null,
     );
   }
-  
+
   Widget _buildQuestionDirectionDropdown() {
     return _buildLevelDropdown(
       value: _selectedQuestionDirectionId,
@@ -289,9 +290,7 @@ class _WorkManagerState extends State<WorkManager> {
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.blue,
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
         child: _isLoading
             ? const SizedBox(
@@ -307,24 +306,22 @@ class _WorkManagerState extends State<WorkManager> {
     );
   }
 
-  Widget _buildWorkButton(){
+  Widget _buildWorkButton() {
     return SizedBox(
       width: 60,
       height: 50,
       child: ElevatedButton(
-        onPressed: ()=>{Navigator.pushNamed(context, '/workArrange')},
+        onPressed: () => {Navigator.pushNamed(context, '/workArrange')},
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.green,
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8)
-          )
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
-         child: const Text('分配任务')
-        ),
+        child: const Text('分配任务'),
+      ),
     );
   }
-  
+
   // 搜索任务（重置分页）
   Future<void> _searchWorks() async {
     setState(() {
@@ -334,7 +331,7 @@ class _WorkManagerState extends State<WorkManager> {
     });
     await _fetchWorks(append: false);
   }
-  
+
   // 加载更多任务
   Future<void> _loadMoreWorks() async {
     if (_hasMore && !_isLoadingMore) {
@@ -409,7 +406,7 @@ class _WorkManagerState extends State<WorkManager> {
         final newWorks = worksData.map<WorkModel>((work) {
           return WorkModel.fromJson(work as Map<String, dynamic>);
         }).toList();
-        
+
         setState(() {
           if (append) {
             _works.addAll(newWorks);
@@ -422,7 +419,7 @@ class _WorkManagerState extends State<WorkManager> {
           _pageSize = (pagination['pageSize'] as int?) ?? _pageSize;
           _totalItems = (pagination['totalItems'] as int?) ?? _totalItems;
           _totalPages = (pagination['totalPages'] as int?) ?? _totalPages;
-          
+
           // 更新是否还有更多数据
           _hasMore = _currentPage < _totalPages;
         });
@@ -453,9 +450,15 @@ class _WorkManagerState extends State<WorkManager> {
             children: [
               Icon(Icons.inbox_outlined, size: 64, color: Colors.grey),
               SizedBox(height: 16),
-              Text('暂无任务数据', style: TextStyle(fontSize: 18, color: Colors.grey)),
+              Text(
+                '暂无任务数据',
+                style: TextStyle(fontSize: 18, color: Colors.grey),
+              ),
               SizedBox(height: 8),
-              Text('请调整筛选条件后重新查询', style: TextStyle(fontSize: 14, color: Colors.grey)),
+              Text(
+                '请调整筛选条件后重新查询',
+                style: TextStyle(fontSize: 14, color: Colors.grey),
+              ),
             ],
           ),
         ),
@@ -479,7 +482,7 @@ class _WorkManagerState extends State<WorkManager> {
                   : const SizedBox.shrink(),
             );
           }
-          
+
           final work = _works[index];
           return _buildWorkItem(work);
         },
@@ -492,17 +495,15 @@ class _WorkManagerState extends State<WorkManager> {
     return Card(
       margin: const EdgeInsets.only(bottom: 12.0),
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: LayoutBuilder(
           builder: (context, constraints) {
             // final isWideScreen = constraints.maxWidth > 600;
-            
+
             // if (isWideScreen) {
-              return _buildWideScreenLayout(work);
+            return _buildWideScreenLayout(work);
             // } else {
             //   return _buildNarrowScreenLayout(work);
             // }
@@ -511,34 +512,25 @@ class _WorkManagerState extends State<WorkManager> {
       ),
     );
   }
-  
+
   // 宽屏布局
   Widget _buildWideScreenLayout(WorkModel work) {
     return Row(
       children: [
         // 任务基本信息
-        Expanded(
-          flex: 2,
-          child: _buildTaskInfo(work),
-        ),
+        Expanded(flex: 2, child: _buildTaskInfo(work)),
         const SizedBox(width: 16),
-        
+
         // 进度信息
-        Expanded(
-          flex: 1,
-          child: _buildProgressInfo(work),
-        ),
+        Expanded(flex: 1, child: _buildProgressInfo(work)),
         const SizedBox(width: 16),
-        
+
         // 状态和操作
-        SizedBox(
-          width: 120,
-          child: _buildStatusAndActions(work),
-        ),
+        SizedBox(width: 120, child: _buildStatusAndActions(work)),
       ],
     );
   }
-  
+
   // 窄屏布局
   // Widget _buildNarrowScreenLayout(WorkModel work) {
   //   return Column(
@@ -557,7 +549,7 @@ class _WorkManagerState extends State<WorkManager> {
   //     ],
   //   );
   // }
-  
+
   // 任务基本信息
   Widget _buildTaskInfo(WorkModel work) {
     return Column(
@@ -567,20 +559,14 @@ class _WorkManagerState extends State<WorkManager> {
           children: [
             Text(
               '任务 #${work.workID}',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const SizedBox(width: 8),
             _buildDifficultyBadge(work.difficulty),
           ],
         ),
         const SizedBox(height: 8),
-        Text(
-          '类目: ${work.category}',
-          style: TextStyle(color: Colors.grey[600]),
-        ),
+        Text('类目: ${work.category}', style: TextStyle(color: Colors.grey[600])),
         const SizedBox(height: 4),
         Text(
           '类型: ${work.collectorType}',
@@ -594,11 +580,13 @@ class _WorkManagerState extends State<WorkManager> {
       ],
     );
   }
-  
+
   // 进度信息
   Widget _buildProgressInfo(WorkModel work) {
-    final progress = work.targetCount > 0 ? work.currentCount / work.targetCount : 0.0;
-    
+    final progress = work.targetCount > 0
+        ? work.currentCount / work.targetCount
+        : 0.0;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -638,40 +626,26 @@ class _WorkManagerState extends State<WorkManager> {
             const SizedBox(width: 8),
             Text(
               '${work.currentCount}/${work.targetCount}',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
             ),
           ],
         ),
       ],
     );
   }
-  
+
   // 难度徽章
   Widget _buildDifficultyBadge(int difficulty) {
-    final colors = {
-      0: Colors.green,
-      1: Colors.orange,
-      2: Colors.red,
-    };
-    
-    final labels = {
-      0: '简单',
-      1: '中等',
-      2: '困难',
-    };
-    
+    final colors = {0: Colors.green, 1: Colors.orange, 2: Colors.red};
+
+    final labels = {0: '简单', 1: '中等', 2: '困难'};
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: (colors[difficulty] ?? Colors.grey).withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: colors[difficulty] ?? Colors.grey,
-          width: 1,
-        ),
+        border: Border.all(color: colors[difficulty] ?? Colors.grey, width: 1),
       ),
       child: Text(
         labels[difficulty] ?? '未知',
@@ -683,20 +657,15 @@ class _WorkManagerState extends State<WorkManager> {
       ),
     );
   }
-  
+
   // 状态徽章
   Widget _buildStatusBadge(WorkModel work) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 6,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: WorkModel.getWorkStateColor(work.state).withOpacity(0.1),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: WorkModel.getWorkStateColor(work.state),
-        ),
+        border: Border.all(color: WorkModel.getWorkStateColor(work.state)),
       ),
       child: Text(
         WorkModel.getWorkState(work.state),
@@ -708,19 +677,41 @@ class _WorkManagerState extends State<WorkManager> {
       ),
     );
   }
-  
+
   // 状态和操作（宽屏用）
   Widget _buildStatusAndActions(WorkModel work) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         _buildStatusBadge(work),
-        const SizedBox(height: 12),
+        const SizedBox(height: 5),
         _buildActionButtons(work),
+        const SizedBox(height: 5),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: () => {_getInspectWork()},
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue.shade50,
+              foregroundColor: Colors.orangeAccent,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            icon: const Icon(Icons.search, size: 16),
+            label: const Text('质检'),
+          ),
+        ),
       ],
     );
   }
-  
+
+  //拉取质检任务
+  Future<void> _getInspectWork()async{
+    
+  }
+
   // 操作按钮
   Widget _buildActionButtons(WorkModel work) {
     return SizedBox(
@@ -731,20 +722,21 @@ class _WorkManagerState extends State<WorkManager> {
           backgroundColor: Colors.blue.shade50,
           foregroundColor: Colors.blue,
           elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
         icon: const Icon(Icons.visibility, size: 16),
         label: const Text('查看'),
       ),
     );
   }
-  
+
   void _viewWorkDetails(WorkModel work) {
-     Navigator.pushNamed(context, '/workDetail',arguments: {'workID':work.workID});
+    Navigator.pushNamed(
+      context,
+      '/workDetail',
+      arguments: {'workID': work.workID},
+    );
   }
-  
 
   // 通用API请求方法
   Future<List<dynamic>> _fetchData(String endpoint) async {

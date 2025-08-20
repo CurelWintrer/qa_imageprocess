@@ -2,10 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:qa_imageprocess/model/user.dart';
 import 'dart:convert';
-
 import 'package:qa_imageprocess/user_session.dart';
-
-
 
 class ManagementPage extends StatefulWidget {
   const ManagementPage({super.key});
@@ -16,7 +13,7 @@ class ManagementPage extends StatefulWidget {
 
 class _ManagementPageState extends State<ManagementPage> {
   List<User> users = [];
-  Set<int> selectedUserIds = {}; // 存储选中的用户ID
+  Set<int> selectedUserIds = {};
   bool isLoading = true;
   String? errorMessage;
 
@@ -39,7 +36,7 @@ class _ManagementPageState extends State<ManagementPage> {
 
     try {
       final response = await http.get(
-        Uri.parse('$_baseUrl/api/user/list'),
+        Uri.parse('$_baseUrl/api/user/all'),
         headers: {
           'Authorization': 'Bearer $_token',
           'Content-Type': 'application/json',
@@ -47,14 +44,14 @@ class _ManagementPageState extends State<ManagementPage> {
       );
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        List<User> fetchedUsers = (data['users'] as List)
+        List<User> fetchedUsers = (data['data'] as List)
             .map((userJson) => User.fromJson(userJson))
-            .where((user) => user.userID != nowUserID) // 过滤掉当前用户
+            .where((user) => user.userID != nowUserID)
             .toList();
 
         setState(() {
           users = fetchedUsers;
-          selectedUserIds.clear(); // 清除上次选择
+          selectedUserIds.clear();
         });
       } else {
         _handleErrorResponse(response);
@@ -82,22 +79,30 @@ class _ManagementPageState extends State<ManagementPage> {
     });
   }
 
-  // 修改角色
-  Future<void> _updateUserRole(int userId, int newRole) async {
+  // 统一角色修改方法
+  Future<void> _updateUserRole(int newRole) async {
+    if (selectedUserIds.isEmpty) {
+      setState(() {
+        errorMessage = '请至少选择一个用户';
+      });
+      return;
+    }
+
     try {
       final response = await http.put(
-        Uri.parse('$_baseUrl/api/user/$userId/role'),
+        Uri.parse('$_baseUrl/api/user/role'),
         headers: {
           'Authorization': 'Bearer $_token',
           'Content-Type': 'application/json',
         },
-        body: json.encode({'role': newRole}),
+        body: json.encode({
+          'userIds': selectedUserIds.toList(),
+          'role': newRole,
+        }),
       );
 
-      print(response.body);
-
       if (response.statusCode == 200) {
-        _fetchUsers(); // 刷新数据
+        _fetchUsers();
       } else {
         _handleErrorResponse(response);
       }
@@ -108,22 +113,30 @@ class _ManagementPageState extends State<ManagementPage> {
     }
   }
 
-  // 修改状态（单个）
-  Future<void> _updateUserState(int userId, int newState) async {
+  // 统一状态修改方法
+  Future<void> _updateUserState(int newState) async {
+    if (selectedUserIds.isEmpty) {
+      setState(() {
+        errorMessage = '请至少选择一个用户';
+      });
+      return;
+    }
+
     try {
       final response = await http.put(
-        Uri.parse('$_baseUrl/api/user/$userId/state'),
+        Uri.parse('$_baseUrl/api/user/state'),
         headers: {
           'Authorization': 'Bearer $_token',
           'Content-Type': 'application/json',
         },
-        body: json.encode({'state': newState}),
+        body: json.encode({
+          'userIds': selectedUserIds.toList(),
+          'state': newState,
+        }),
       );
 
-      // print(response.body);
-
       if (response.statusCode == 200) {
-        _fetchUsers(); // 刷新数据
+        _fetchUsers();
       } else {
         _handleErrorResponse(response);
       }
@@ -134,56 +147,12 @@ class _ManagementPageState extends State<ManagementPage> {
     }
   }
 
-  // 批量修改状态
-  Future<void> _batchUpdateUserState(int newState) async {
-    if (selectedUserIds.isEmpty) {
-      setState(() {
-        errorMessage = '请至少选择一个用户';
-      });
-      return;
-    }
 
-    try {
-      final response = await http.put(
-        Uri.parse('$_baseUrl/api/user/batch-state'),
-        headers: {
-          'Authorization': 'Bearer $_token',
-          'Content-Type': 'application/json',
-        },
-        body: json.encode({
-          'userIDs': selectedUserIds.toList(),
-          'state': newState,
-        }),
-      );
-      print('now User$nowUserID');
 
-      print(response.body);
-
-      if (response.statusCode == 200) {
-        _fetchUsers(); // 刷新数据
-      } else {
-        _handleErrorResponse(response);
-      }
-    } catch (e) {
-      setState(() {
-        errorMessage = '批量更新失败: $e';
-      });
-    }
-  }
-
-  // 角色显示文字转换
-  String _roleText(int role) {
-    return role == 1 ? '管理员' : '普通用户';
-  }
-
-  // 状态显示文字转换
-  String _stateText(int state) {
-    return state == 1 ? '正常' : '禁用';
-  }
 
   // 状态显示颜色
   Color _stateColor(int state) {
-    return state == 1 ? Colors.green : Colors.red;
+    return state == 0 ? Colors.green : Colors.red;
   }
 
   // 切换用户选择
@@ -199,12 +168,11 @@ class _ManagementPageState extends State<ManagementPage> {
 
   // 显示角色修改对话框
   void _showRoleDialog(BuildContext context, User user) {
-    // 使用状态管理对话框内部的选中值
     showDialog(
       context: context,
       builder: (context) {
-        int selectedRole = user.role??0;
-        
+        int selectedRole = user.role ?? 0;
+
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
@@ -241,8 +209,13 @@ class _ManagementPageState extends State<ManagementPage> {
                 ),
                 TextButton(
                   onPressed: () {
+                    final currentSelected = selectedUserIds.toSet();
+                    setState(() => selectedUserIds = {user.userID});
+
                     Navigator.pop(context);
-                    _updateUserRole(user.userID, selectedRole);
+                    _updateUserRole(selectedRole).then((_) {
+                      setState(() => selectedUserIds = currentSelected);
+                    });
                   },
                   child: const Text('确定'),
                 ),
@@ -256,13 +229,11 @@ class _ManagementPageState extends State<ManagementPage> {
 
   // 显示状态修改对话框
   void _showStateDialog(BuildContext context, User user) {
-    // 使用状态管理对话框内部的选中值
     showDialog(
       context: context,
       builder: (context) {
-        int selectedState = user.state??0;
-        print(user.userID);
-        
+        int selectedState = user.state ?? 0;
+
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
@@ -299,8 +270,13 @@ class _ManagementPageState extends State<ManagementPage> {
                 ),
                 TextButton(
                   onPressed: () {
+                    final currentSelected = selectedUserIds.toSet();
+                    setState(() => selectedUserIds = {user.userID});
+
                     Navigator.pop(context);
-                    _updateUserState(user.userID, selectedState);
+                    _updateUserState(selectedState).then((_) {
+                      setState(() => selectedUserIds = currentSelected);
+                    });
                   },
                   child: const Text('确定'),
                 ),
@@ -320,14 +296,28 @@ class _ManagementPageState extends State<ManagementPage> {
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           if (selectedUserIds.isNotEmpty) ...[
+            // 角色修改按钮
             OutlinedButton(
-              onPressed: () => _batchUpdateUserState(1),
+              onPressed: () => _updateUserRole(1),
+              style: OutlinedButton.styleFrom(foregroundColor: Colors.blue),
+              child: const Text('设为管理员'),
+            ),
+            const SizedBox(width: 10),
+            OutlinedButton(
+              onPressed: () => _updateUserRole(0),
+              style: OutlinedButton.styleFrom(foregroundColor: Colors.blue),
+              child: const Text('设为普通用户'),
+            ),
+            const SizedBox(width: 10),
+            // 状态修改按钮
+            OutlinedButton(
+              onPressed: () => _updateUserState(0),
               style: OutlinedButton.styleFrom(foregroundColor: Colors.green),
               child: const Text('设为正常'),
             ),
             const SizedBox(width: 10),
             OutlinedButton(
-              onPressed: () => _batchUpdateUserState(0),
+              onPressed: () => _updateUserState(1),
               style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
               child: const Text('设为禁用'),
             ),
@@ -348,7 +338,6 @@ class _ManagementPageState extends State<ManagementPage> {
     return Scaffold(
       body: Column(
         children: [
-          // 错误消息显示
           if (errorMessage != null)
             Padding(
               padding: const EdgeInsets.all(8.0),
@@ -358,29 +347,26 @@ class _ManagementPageState extends State<ManagementPage> {
               ),
             ),
 
-          // 批量操作区域
           _buildBatchActions(),
 
-          // 用户列表
           Expanded(
             child: isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : users.isEmpty
-                    ? const Center(child: Text('没有可管理的用户'))
-                    : ListView.builder(
-                        itemCount: users.length,
-                        itemBuilder: (context, index) {
-                          final user = users[index];
-                          return _buildUserListItem(user);
-                        },
-                      ),
+                ? const Center(child: Text('没有可管理的用户'))
+                : ListView.builder(
+                    itemCount: users.length,
+                    itemBuilder: (context, index) {
+                      final user = users[index];
+                      return _buildUserListItem(user);
+                    },
+                  ),
           ),
         ],
       ),
     );
   }
 
-  // 构建用户列表项
   Widget _buildUserListItem(User user) {
     final isSelected = selectedUserIds.contains(user.userID);
 
@@ -402,7 +388,7 @@ class _ManagementPageState extends State<ManagementPage> {
               borderRadius: BorderRadius.circular(4),
             ),
             child: Text(
-              _roleText(user.role??0),
+              User.getUserRole(user.role??-1),
               style: const TextStyle(fontSize: 12),
             ),
           ),
@@ -412,12 +398,15 @@ class _ManagementPageState extends State<ManagementPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: _stateColor(user.state??0).withOpacity(0.2),
+              color: _stateColor(user.state ?? 0).withOpacity(0.2),
               borderRadius: BorderRadius.circular(4),
             ),
             child: Text(
-              _stateText(user.state??0),
-              style: TextStyle(fontSize: 12, color: _stateColor(user.state??0)),
+              User.getUserState(user.state??-1),
+              style: TextStyle(
+                fontSize: 12,
+                color: _stateColor(user.state ?? 0),
+              ),
             ),
           ),
           const SizedBox(width: 10),
@@ -452,8 +441,6 @@ class _ManagementPageState extends State<ManagementPage> {
         ],
       ),
       onTap: () => _toggleUserSelection(user.userID),
-      onLongPress: () => _showStateDialog(context, user),
     );
   }
 }
-

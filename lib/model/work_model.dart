@@ -18,6 +18,7 @@ class WorkModel {
   final int currentCount;
   final User admin;
   final User worker;
+  final User? inspector;
   final String created_at;
   final String updated_at;
 
@@ -36,6 +37,7 @@ class WorkModel {
     required this.currentCount,
     required this.admin,
     required this.worker,
+    this.inspector,
     required this.created_at,
     required this.updated_at,
   });
@@ -56,6 +58,7 @@ class WorkModel {
       currentCount: json['currentCount'] as int? ?? 0,
       admin: User.fromJson(json['admin'] as Map<String, dynamic>? ?? {}),
       worker: User.fromJson(json['worker'] as Map<String, dynamic>? ?? {}),
+      inspector: User.fromJson(json['inspector'] as Map<String,dynamic>? ?? {}),
       created_at: json['created_at'] ?? '',
       updated_at: json['updated_at'] ?? '',
     );
