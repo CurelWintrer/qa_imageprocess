@@ -57,15 +57,7 @@ class MyApp extends StatelessWidget {
                   as Map<String, dynamic>;
           return WorkDetailScreen(workID: args['workID']);
         },
-<<<<<<< HEAD
         '/workArrange': (context) => WorkArrange(),
-=======
-        '/Inspect': (context) {
-          final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
-          return Inspect(workID: args['workID']);
-        },
-        '/workArrange':(context)=>WorkArrange(),
->>>>>>> 625f0a5ed634dd61e7cbd2cc3535241e41f3c85f
       },
     );
   }
