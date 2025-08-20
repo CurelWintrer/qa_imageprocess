@@ -713,11 +713,24 @@ class _WorkManagerState extends State<WorkManager> {
     try {
       final response = await http.post(
         Uri.parse('${UserSession().baseUrl}/api/works/assign-inspection'),
-        headers: {'Authorization': 'Bearer ${UserSession().token ?? ''}'},
+        headers: {'Authorization': 'Bearer ${UserSession().token ?? ''}','Content-Type': 'application/json'},
         body: jsonEncode({'workID': work.workID}),
       );
 
+      print(response.body);
+
       if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        if (jsonData['data'] == null) {
+          throw FormatException('API响应缺少数据字段');
+        }
+        final updatedWork = WorkModel.fromJson(jsonData['data']);
+        setState(() {
+          final index=_works.indexWhere((work)=>work.workID==updatedWork.workID);
+          if(index!=-1){
+            _works[index]=updatedWork;
+          }
+        });
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('拉取质检任务成功')));
