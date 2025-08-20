@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:qa_imageprocess/model/work_model.dart';
+import 'package:qa_imageprocess/tools/work_state.dart';
 import 'package:qa_imageprocess/user_session.dart';
 
 class WorkList extends StatefulWidget {
@@ -220,19 +221,7 @@ class _WorkListState extends State<WorkList> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      // appBar: AppBar(
-      //   title: const Text('工作列表'),
-      //   actions: [
-      //     IconButton(
-      //       icon: const Icon(Icons.refresh),
-      //       onPressed: _loadInitialData,
-      //       tooltip: '刷新',
-      //     ),
-      //   ],
-      // ),
-      body: _buildBody(),
-    );
+    return Scaffold(body: _buildBody());
   }
 
   Widget _buildBody() {
@@ -429,7 +418,10 @@ class _WorkListState extends State<WorkList> {
                   ),
                 const SizedBox(width: 8),
                 if (work.state != 3)
-                  ElevatedButton(onPressed: () => {}, child: const Text('提交')),
+                  ElevatedButton(
+                    onPressed: () => {_handleSubmit(work, 3)},
+                    child: const Text('提交'),
+                  ),
                 const SizedBox(width: 8),
                 ElevatedButton(
                   onPressed: () => _viewWorkDetails(work),
@@ -443,7 +435,32 @@ class _WorkListState extends State<WorkList> {
     );
   }
 
-  
+  Future<void> _handleSubmit(WorkModel work,int newStatus) async {
+      await WorkState.submitWork(
+        context,
+        work,
+        newStatus,
+        onSuccess: (updatedWork) {
+          setState(() {
+            // _currentWork = updatedWork;
+            _works=_works.map((work){
+              if(work.workID==updatedWork.workID){
+                return updatedWork;
+              }
+              return work;
+            }).toList();
+          });
+          // 可以在这里添加更多成功处理逻辑
+          print("任务更新成功，新状态: ${updatedWork.state}");
+        },
+        onError: (error) {
+          // 错误处理
+          print("任务更新失败$error");
+          
+        }
+      );
+
+  }
 
   // 状态标签
   Widget _buildStatusBadge(int state) {

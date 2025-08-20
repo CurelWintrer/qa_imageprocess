@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:qa_imageprocess/UserAccount/login_page.dart';
 import 'package:qa_imageprocess/home_page.dart';
-import 'package:qa_imageprocess/pages/inspect.dart';
 import 'package:qa_imageprocess/pages/system_set.dart';
 import 'package:qa_imageprocess/pages/work.dart';
 import 'package:qa_imageprocess/pages/work_arrange.dart';
