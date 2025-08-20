@@ -1,6 +1,7 @@
 // 添加必要的导入
 import 'package:flutter/material.dart';
 import 'package:qa_imageprocess/navi/app_navigation_drawer.dart';
+import 'package:qa_imageprocess/pages/allimage.dart';
 import 'package:qa_imageprocess/pages/export.dart';
 import 'package:qa_imageprocess/pages/get_repeated_image.dart';
 import 'package:qa_imageprocess/pages/management_page.dart';
@@ -114,7 +115,9 @@ class _HomePageState extends State<HomePage>
     if (isAdmin) {
       basePages.add({'title': '账号管理', 'page': ManagementPage(key: _pageKeys[3])});
       basePages.add({'title':'任务管理','page':WorkManager(key: _pageKeys[4])});
-      basePages.add({'title':'导出','page':Export(key: _pageKeys[5],)});
+      basePages.add({'title':'总览','page':Allimage(key: _pageKeys[5],)});
+      basePages.add({'title':'导出','page':Export(key: _pageKeys[6],)});
+
     }
 
     // 更新页面和标题列表
@@ -335,13 +338,13 @@ class _HomePageState extends State<HomePage>
       case 2:
         return Icons.title;
       case 3:
-        return Icons.image;
+        return Icons.people;
       case 4:
         return Icons.image_outlined;
       case 5:
-        return Icons.download;
+        return Icons.view_agenda;
       case 6:
-        return Icons.commit;
+        return Icons.download;
       case 7:
         return Icons.admin_panel_settings;
       default:

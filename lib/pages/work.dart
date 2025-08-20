@@ -151,12 +151,117 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
     );
   }
 
+  void _openReturnReasonAndRemark() {
+  showDialog(
+    context: context,
+    barrierDismissible: true,
+    useSafeArea: true,
+    builder: (context) {
+      return AlertDialog(
+        insetPadding: const EdgeInsets.all(20),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+        title: Row(
+          children: [
+            const Icon(Icons.warning, color: Colors.red),
+            const SizedBox(width: 10),
+            const Text('打回详情',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+            const Spacer(),
+            IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () => Navigator.pop(context),
+              tooltip: '关闭',
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_work!.returnReason != null && _work!.returnReason!.isNotEmpty)
+              ...[
+                const Text('打回原因：',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red,
+                      fontSize: 16,
+                    )),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF0F0),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red.withOpacity(0.3)),
+                  ),
+                  child: Text(
+                    _work!.returnReason!,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.red,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+            
+            if (_work!.remark != null && _work!.remark!.isNotEmpty)
+              ...[
+                const Text('备注说明：',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue,
+                      fontSize: 16,
+                    )),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0F7FF),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                  ),
+                  child: Text(
+                    _work!.remark!,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.blueGrey,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            
+            if ((_work!.returnReason == null || _work!.returnReason!.isEmpty) &&
+                (_work!.remark == null || _work!.remark!.isEmpty))
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Text('暂无打回信息',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontStyle: FontStyle.italic,
+                      color: Colors.grey,
+                    )),
+              ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text('Work #${widget.workID}'),
         actions: [
+          IconButton(onPressed: () => {_openReturnReasonAndRemark()}, icon: Icon(Icons.tips_and_updates)),
+          SizedBox(width: 20),
           if (_isInSelectionMode) ...[
             IconButton(
               icon: const Icon(Icons.select_all),
@@ -184,6 +289,7 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
               tooltip: '多选模式',
             ),
           ],
+          SizedBox(width: 20),
         ],
       ),
       body: _buildBody(),
@@ -489,84 +595,88 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
   }
 
   Future<void> _batchProcessImages() async {
-  if (_selectedImageIDs.isEmpty) return;
+    if (_selectedImageIDs.isEmpty) return;
 
-  // 确认对话框
-  final confirmed = await showDialog<bool>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('确认批量处理'),
-      content: Text('确定要批量处理选中的 ${_selectedImageIDs.length} 张图片吗？'),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, false),
-          child: const Text('取消'),
-        ),
-        ElevatedButton(
-          onPressed: () => Navigator.pop(context, true),
-          child: const Text('开始处理'),
-        ),
-      ],
-    ),
-  ) ?? false;
+    // 确认对话框
+    final confirmed =
+        await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('确认批量处理'),
+            content: Text('确定要批量处理选中的 ${_selectedImageIDs.length} 张图片吗？'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('取消'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('开始处理'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
 
-  if (!confirmed) return;
+    if (!confirmed) return;
 
-  // 复制一份选中的图片ID，防止在处理过程中修改
-  final imagesToProcess = List<int>.from(_selectedImageIDs);
-  final totalCount = imagesToProcess.length;
+    // 复制一份选中的图片ID，防止在处理过程中修改
+    final imagesToProcess = List<int>.from(_selectedImageIDs);
+    final totalCount = imagesToProcess.length;
 
-  // 添加到处理队列并清空选择
-  setState(() {
-    _processingImageIDs.addAll(imagesToProcess);
-    _deselectAllImages();
-  });
+    // 添加到处理队列并清空选择
+    setState(() {
+      _processingImageIDs.addAll(imagesToProcess);
+      _deselectAllImages();
+    });
 
-  int processedCount = 0;
+    int processedCount = 0;
 
-  // 使用队列控制并发数量
-  final queue = Queue<Future>();
-  const maxConcurrency = 5; // 最大并发数
+    // 使用队列控制并发数量
+    final queue = Queue<Future>();
+    const maxConcurrency = 5; // 最大并发数
 
-  for (final imageID in imagesToProcess) {
-    while (queue.length >= maxConcurrency) {
-      await Future.any(queue);
+    for (final imageID in imagesToProcess) {
+      while (queue.length >= maxConcurrency) {
+        await Future.any(queue);
+      }
+
+      final image = _images.firstWhere((img) => img.imageID == imageID);
+
+      // 先声明 task 变量
+      Future task = _executeAITask(image);
+
+      // 将任务添加到队列
+      queue.add(task);
+
+      // 使用 task 变量
+      task
+          .then((_) {
+            processedCount++;
+            if (processedCount % 5 == 0 || processedCount == totalCount) {
+              // 每处理5张或全部完成时更新进度
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text("处理进度: $processedCount/$totalCount")),
+                );
+              }
+            }
+            queue.remove(task);
+          })
+          .catchError((error) {
+            queue.remove(task);
+          });
     }
 
-    final image = _images.firstWhere((img) => img.imageID == imageID);
-    
-    // 先声明 task 变量
-    Future task = _executeAITask(image);
-    
-    // 将任务添加到队列
-    queue.add(task);
-    
-    // 使用 task 变量
-    task.then((_) {
-      processedCount++;
-      if (processedCount % 5 == 0 || processedCount == totalCount) {
-        // 每处理5张或全部完成时更新进度
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("处理进度: $processedCount/$totalCount")),
-          );
-        }
-      }
-      queue.remove(task);
-    }).catchError((error) {
-      queue.remove(task);
-    });
-  }
+    // 等待所有任务完成
+    await Future.wait(queue);
 
-  // 等待所有任务完成
-  await Future.wait(queue);
-
-  if (mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("批量处理完成! 成功: $processedCount/$totalCount")),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("批量处理完成! 成功: $processedCount/$totalCount")),
+      );
+    }
   }
-}
 
   // 答案选项指示器
   Widget _buildAnswerIndicators(QuestionModel question) {

@@ -18,8 +18,10 @@ class ImageState {
       case 3:
         return '检查通过';
       case 4:
-        return '已交付';
+        return '等待交付';
       case 5:
+        return '已交付';
+      case 6:
         return '废弃';
       default:
         return '未知状态';
