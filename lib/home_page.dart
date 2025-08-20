@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:qa_imageprocess/navi/app_navigation_drawer.dart';
 import 'package:qa_imageprocess/pages/export.dart';
+import 'package:qa_imageprocess/pages/get_repeated_image.dart';
 import 'package:qa_imageprocess/pages/management_page.dart';
 import 'package:qa_imageprocess/pages/review_list.dart';
 import 'package:qa_imageprocess/pages/work.dart';
@@ -105,14 +106,15 @@ class _HomePageState extends State<HomePage>
     // 创建页面实例 - 使用GlobalKey保存状态
     final basePages = [
       {'title': 'Work', 'page':WorkList(key: _pageKeys[0],)},
-      {'title':'质检','page':ReviewList(key: _pageKeys[1])}
+      {'title':'质检','page':ReviewList(key: _pageKeys[1])},
+      {'title':'查重','page':GetRepeatedImage(key: _pageKeys[2],)}
     ];
 
     // 只有管理员才添加管理页面
     if (isAdmin) {
-      basePages.add({'title': '账号管理', 'page': ManagementPage(key: _pageKeys[2])});
-      basePages.add({'title':'任务管理','page':WorkManager(key: _pageKeys[3])});
-      basePages.add({'title':'导出','page':Export(key: _pageKeys[4],)});
+      basePages.add({'title': '账号管理', 'page': ManagementPage(key: _pageKeys[3])});
+      basePages.add({'title':'任务管理','page':WorkManager(key: _pageKeys[4])});
+      basePages.add({'title':'导出','page':Export(key: _pageKeys[5],)});
     }
 
     // 更新页面和标题列表
