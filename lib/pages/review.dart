@@ -152,6 +152,32 @@ class _ReviewState extends State<Review> {
     });
   }
 
+  Widget _buildTitleRow(ImageModel image) {
+  return Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween, // 使用空间分布替代Spacer
+    children: [
+      // 左侧内容（ID + 状态标签）
+      Row(
+        children: [
+          Text(
+            '#${image.imageID}',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(width: 6),
+          _buildImageStatusBadge(image.state),
+        ],
+      ),
+      // 右侧按钮（替代Spacer + IconButton）
+      IconButton(
+        onPressed: () => _executeAITask(image),
+        icon: Icon(Icons.auto_awesome),
+        iconSize: 20,
+        tooltip: 'AI-QA',
+      ),
+    ],
+  );
+}
+
   // 构建左侧列表项
   Widget _buildLeftListItem(ImageModel image) {
     final firstQuestion = image.questions?.isNotEmpty == true
@@ -236,23 +262,7 @@ class _ReviewState extends State<Review> {
                       ),
                     ),
             ),
-            title: Row(
-              children: [
-                Text(
-                  '#${image.imageID}',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(width: 6),
-                _buildImageStatusBadge(image.state),
-                const Spacer(),
-                IconButton(
-                  onPressed: () => _executeAITask(image),
-                  icon: Icon(Icons.auto_awesome),
-                  iconSize: 20,
-                  tooltip: 'AI-QA',
-                ),
-              ],
-            ),
+            title: _buildTitleRow(image),
             subtitle: firstQuestion != null
                 ? Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
