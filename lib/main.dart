@@ -40,8 +40,10 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color.fromARGB(255, 58, 108, 183)),
-        fontFamily: 'YeHei'
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color.fromARGB(255, 58, 108, 183),
+        ),
+        fontFamily: 'YeHei',
       ),
       home: isLogin() ? const HomePage() : const LoginPage(),
       routes: {
@@ -49,14 +51,17 @@ class MyApp extends StatelessWidget {
         '/login': (context) => LoginPage(),
         '/systemSet': (context) => SystemSet(),
         '/workDetail': (context) {
-          final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+          final args =
+              ModalRoute.of(context)!.settings.arguments
+                  as Map<String, dynamic>;
           return WorkDetailScreen(workID: args['workID']);
         },
-        '/workArrange':(context)=>WorkArrange(),
+        '/workArrange': (context) => WorkArrange(),
       },
     );
   }
-    bool isLogin() {
+
+  bool isLogin() {
     if (UserSession().token != null) {
       return true;
     } else {
@@ -64,7 +69,3 @@ class MyApp extends StatelessWidget {
     }
   }
 }
-
-
-
-
