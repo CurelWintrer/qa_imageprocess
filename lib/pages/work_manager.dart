@@ -687,29 +687,50 @@ class _WorkManagerState extends State<WorkManager> {
         const SizedBox(height: 5),
         _buildActionButtons(work),
         const SizedBox(height: 5),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: () => {_getInspectWork()},
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue.shade50,
-              foregroundColor: Colors.orangeAccent,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+        if (work.state == 3)
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => {_getInspectWork(work)},
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue.shade50,
+                foregroundColor: Colors.orangeAccent,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
+              icon: const Icon(Icons.search, size: 16),
+              label: const Text('质检'),
             ),
-            icon: const Icon(Icons.search, size: 16),
-            label: const Text('质检'),
           ),
-        ),
       ],
     );
   }
 
   //拉取质检任务
-  Future<void> _getInspectWork()async{
-    
+  Future<void> _getInspectWork(WorkModel work) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${UserSession().baseUrl}/api/works/assign-inspection'),
+        headers: {'Authorization': 'Bearer ${UserSession().token ?? ''}'},
+        body: jsonEncode({'workID': work.workID}),
+      );
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('拉取质检任务成功')));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('拉取质检任务失败${response.statusCode}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('拉取质检任务出错$e')));
+    }
   }
 
   // 操作按钮
