@@ -12,7 +12,7 @@ class UserSession {
   String? email;
   int? role;
   int? id;
-  String baseUrl = 'http://10.1.5.103:9000';
+  String baseUrl = 'http://10.1.5.103:8080';
   String apiUrl = 'https://api.shubiaobiao.com/v1/chat/completions';
   String apiKey = 'sk-NHfglGBWKuzKXBH5kV55BtNJaxrjRp8lkvJ7qiWK3EqLitG4';
   String modelName='gemini-2.5-pro';
