@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'dart:convert';
@@ -30,6 +32,9 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
   int _columnCount = 4; // 默认4列
 
   Set<int> _processingImageIDs = {}; // 记录正在处理AI的图片ID
+
+  Set<int> _selectedImageIDs = {}; // 存储选中的图片ID
+  bool _isInSelectionMode = false; // 是否处于多选模式
 
   @override
   void initState() {
@@ -149,7 +154,36 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Work #${widget.workID}'), actions: [
+      appBar: AppBar(
+        title: Text('Work #${widget.workID}'),
+        actions: [
+          if (_isInSelectionMode) ...[
+            IconButton(
+              icon: const Icon(Icons.select_all),
+              onPressed: _selectedImageIDs.length == _images.length
+                  ? _deselectAllImages
+                  : _selectAllImages,
+              tooltip: _selectedImageIDs.length == _images.length
+                  ? '取消全选'
+                  : '全选',
+            ),
+            IconButton(
+              icon: const Icon(Icons.play_arrow),
+              onPressed: _batchProcessImages,
+              tooltip: '批量处理',
+            ),
+            IconButton(
+              icon: const Icon(Icons.cancel),
+              onPressed: _deselectAllImages,
+              tooltip: '退出多选',
+            ),
+          ] else if (_images.isNotEmpty) ...[
+            IconButton(
+              icon: const Icon(Icons.checklist),
+              onPressed: () => setState(() => _isInSelectionMode = true),
+              tooltip: '多选模式',
+            ),
+          ],
         ],
       ),
       body: _buildBody(),
@@ -286,8 +320,21 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
         : null;
     // 检查当前图片是否正在处理中
     final bool isProcessing = _processingImageIDs.contains(image.imageID);
-    return Card(
-      elevation: 2,
+    final bool isSelected = _selectedImageIDs.contains(image.imageID);
+    return GestureDetector(
+      onLongPress: () => {
+        setState(() {
+          _isInSelectionMode = true;
+          _toggleImageSelection(image.imageID);
+        }),
+      },
+      onTap: () {
+        if (_isInSelectionMode) {
+          setState(() => _toggleImageSelection(image.imageID));
+        } else {
+          _openImageDetail(image);
+        }
+      },
       child: Stack(
         children: [
           Column(
@@ -382,23 +429,144 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
                   ),
                 ),
               ],
-              
+              // 多选框（只有在多选模式显示）
+              if (_isInSelectionMode)
+                Positioned(
+                  top: 8,
+                  left: 8,
+                  child: Checkbox(
+                    value: isSelected,
+                    onChanged: (value) => setState(() {
+                      _toggleImageSelection(image.imageID);
+                    }),
+                  ),
+                ),
             ],
           ),
-          if(isProcessing)
-                Positioned.fill(child: Container(
-                  color: Colors.black54,
-                  child: Center(
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 3.0,
-                    ),
+          if (isProcessing)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black54,
+                child: Center(
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 3.0,
                   ),
-                ))
+                ),
+              ),
+            ),
         ],
       ),
     );
   }
+
+  // 添加辅助方法
+  void _toggleImageSelection(int imageID) {
+    if (_selectedImageIDs.contains(imageID)) {
+      _selectedImageIDs.remove(imageID);
+    } else {
+      _selectedImageIDs.add(imageID);
+    }
+
+    // 如果没有选中任何图片，退出多选模式
+    if (_selectedImageIDs.isEmpty) {
+      _isInSelectionMode = false;
+    }
+  }
+
+  void _selectAllImages() {
+    setState(() {
+      _selectedImageIDs = Set<int>.from(_images.map((img) => img.imageID));
+      _isInSelectionMode = true;
+    });
+  }
+
+  void _deselectAllImages() {
+    setState(() {
+      _selectedImageIDs.clear();
+      _isInSelectionMode = false;
+    });
+  }
+
+  Future<void> _batchProcessImages() async {
+  if (_selectedImageIDs.isEmpty) return;
+
+  // 确认对话框
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('确认批量处理'),
+      content: Text('确定要批量处理选中的 ${_selectedImageIDs.length} 张图片吗？'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('取消'),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('开始处理'),
+        ),
+      ],
+    ),
+  ) ?? false;
+
+  if (!confirmed) return;
+
+  // 复制一份选中的图片ID，防止在处理过程中修改
+  final imagesToProcess = List<int>.from(_selectedImageIDs);
+  final totalCount = imagesToProcess.length;
+
+  // 添加到处理队列并清空选择
+  setState(() {
+    _processingImageIDs.addAll(imagesToProcess);
+    _deselectAllImages();
+  });
+
+  int processedCount = 0;
+
+  // 使用队列控制并发数量
+  final queue = Queue<Future>();
+  const maxConcurrency = 5; // 最大并发数
+
+  for (final imageID in imagesToProcess) {
+    while (queue.length >= maxConcurrency) {
+      await Future.any(queue);
+    }
+
+    final image = _images.firstWhere((img) => img.imageID == imageID);
+    
+    // 先声明 task 变量
+    Future task = _executeAITask(image);
+    
+    // 将任务添加到队列
+    queue.add(task);
+    
+    // 使用 task 变量
+    task.then((_) {
+      processedCount++;
+      if (processedCount % 5 == 0 || processedCount == totalCount) {
+        // 每处理5张或全部完成时更新进度
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("处理进度: $processedCount/$totalCount")),
+          );
+        }
+      }
+      queue.remove(task);
+    }).catchError((error) {
+      queue.remove(task);
+    });
+  }
+
+  // 等待所有任务完成
+  await Future.wait(queue);
+
+  if (mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("批量处理完成! 成功: $processedCount/$totalCount")),
+    );
+  }
+}
 
   // 答案选项指示器
   Widget _buildAnswerIndicators(QuestionModel question) {
