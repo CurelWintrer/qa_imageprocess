@@ -12,8 +12,8 @@ class ReviewList extends StatefulWidget {
 }
 
 class _ReviewListState extends State<ReviewList> {
-  String _token = UserSession().token ?? '';
-  String _baseUrl = UserSession().baseUrl;
+  final String _token = UserSession().token ?? '';
+  final String _baseUrl = UserSession().baseUrl;
   final int _pageSize = 20;
   int _currentPage = 1;
   int _totalPages = 1;
@@ -29,11 +29,14 @@ class _ReviewListState extends State<ReviewList> {
   @override
   void initState() {
     super.initState();
+    _pendingCount = 0;
+    _inProgressCount = 0;
+    _completedCount = 0;
+    _fetchWorks();
     _fetchWorks();
   }
 
   Future<void> _fetchWorks() async {
-    if (_isLoading) return;
     setState(() {
       _isLoading = true;
     });
@@ -43,7 +46,7 @@ class _ReviewListState extends State<ReviewList> {
           '$_baseUrl/api/works/inspection-tasks?page=$_currentPage&pageSize=$_pageSize',
         ),
         headers: {
-          'Authorization': 'Bearer ${UserSession().token ?? ''}',
+          'Authorization': 'Bearer $_token',
           'Content-Type': 'application/json',
         },
       );
@@ -81,11 +84,20 @@ class _ReviewListState extends State<ReviewList> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('任务加载成功')));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('API错误: ${response.statusCode}')),
+        );
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('任务加载错误$e')));
+      // ScaffoldMessenger.of(
+      //   context,
+      // ).showSnackBar(SnackBar(content: Text('任务加载错误$e')));
+      print('质检任务加载错误$e');
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
@@ -96,25 +108,17 @@ class _ReviewListState extends State<ReviewList> {
     _fetchWorks();
   }
 
-  // 修复分页参数自增逻辑
+  // 分页参数自增
   void _loadNextPage() {
     if (_currentPage < _totalPages && !_isLoading) {
+      // 添加_isLoading检查
       setState(() => _currentPage++);
       _fetchWorks();
     }
   }
 
   void _startChecking(WorkModel work) {
-    Navigator.pushNamed(
-      context,
-      '/review',
-      arguments: {'workID': work.workID},
-    );
-  }
-
-  void _abandonTask(int taskId) {
-    // TODO: 实现放弃任务逻辑
-    print('放弃任务：$taskId');
+    Navigator.pushNamed(context, '/review', arguments: {'workID': work.workID});
   }
 
   @override
@@ -296,48 +300,15 @@ class _ReviewListState extends State<ReviewList> {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                // if (work.state == 0 || work.state == 1)
-                // TextButton(
-                //   onPressed: () => _showReturnDialog(work.workID),
-                //   style: TextButton.styleFrom(foregroundColor: Colors.red),
-                //   child: const Text('打回'),
-                // ),
-                // const SizedBox(width: 8),
-                // if (work.state != 3)
-                //   ElevatedButton(onPressed: () => {}, child: const Text('通过')),
-                // const SizedBox(width: 8),
-                ElevatedButton(onPressed: () => {_startChecking(work)}, child: const Text('检查')),
+                ElevatedButton(
+                  onPressed: () => {_startChecking(work)},
+                  child: const Text('检查'),
+                ),
               ],
             ),
           ],
         ),
       ),
-    );
-  }
-
-  // 放弃任务确认对话框
-  void _showReturnDialog(int workID) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('确认打回任务'),
-          content: const Text('确定要打回这个任务吗？此操作不可撤销。'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('取消'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('确认打回'),
-            ),
-          ],
-        );
-      },
     );
   }
 
