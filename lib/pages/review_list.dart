@@ -19,7 +19,6 @@ class _ReviewListState extends State<ReviewList> {
   int _totalPages = 1;
   int _totalTasks = 0;
 
-  int _pendingCount = 0;
   int _inProgressCount = 0;
   int _completedCount = 0;
 
@@ -29,7 +28,6 @@ class _ReviewListState extends State<ReviewList> {
   @override
   void initState() {
     super.initState();
-    _pendingCount = 0;
     _inProgressCount = 0;
     _completedCount = 0;
     _fetchWorks();
@@ -58,24 +56,19 @@ class _ReviewListState extends State<ReviewList> {
           // 重置第一页数据，追加后续分页数据
           if (_currentPage == 1) _works.clear();
           _works.addAll(items.map((item) => WorkModel.fromJson(item)).toList());
-          _totalPages = data['totalPages'];
-          _totalTasks = data['totalItems'];
+          _totalPages = data['pagination']['totalPages'];
+          _totalTasks = data['pagination']['totalItems'];
 
-          // 重置状态计数器
-          _pendingCount = 0;
           _inProgressCount = 0;
           _completedCount = 0;
 
           // 统计各种状态的数量
           for (var task in _works) {
             switch (task.state) {
-              case 0:
-                _pendingCount++;
-                break;
-              case 1:
+              case 4:
                 _inProgressCount++;
                 break;
-              case 2:
+              case 5||6:
                 _completedCount++;
                 break;
             }
@@ -135,11 +128,6 @@ class _ReviewListState extends State<ReviewList> {
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
                       _buildSummaryCard('总任务数', '$_totalTasks', Icons.list),
-                      _buildSummaryCard(
-                        '未检查',
-                        '$_pendingCount',
-                        Icons.pending_actions,
-                      ),
                       _buildSummaryCard(
                         '检查中',
                         '$_inProgressCount',
