@@ -104,9 +104,12 @@ class _ReviewListState extends State<ReviewList> {
     }
   }
 
-  void _startChecking(int taskId) {
-    // TODO: 实现开始检查逻辑
-    print('开始检查任务：$taskId');
+  void _startChecking(WorkModel work) {
+    Navigator.pushNamed(
+      context,
+      '/review',
+      arguments: {'workID': work.workID},
+    );
   }
 
   void _abandonTask(int taskId) {
@@ -303,7 +306,7 @@ class _ReviewListState extends State<ReviewList> {
                 if (work.state != 3)
                   ElevatedButton(onPressed: () => {}, child: const Text('通过')),
                 const SizedBox(width: 8),
-                ElevatedButton(onPressed: () => {}, child: const Text('检查')),
+                ElevatedButton(onPressed: () => {_startChecking(work)}, child: const Text('检查')),
               ],
             ),
           ],

@@ -614,8 +614,7 @@ class _ImageDetailState extends State<ImageDetail> {
                   _buildInfoItem('采集类型', currentImage.collectorType),
                   _buildInfoItem('问题方向', currentImage.questionDirection),
                   _buildInfoItem(
-                    '难度',
-                    currentImage.difficulty?.toString() ?? '未知',
+                    '难度',ImageState.getDifficulty(currentImage.difficulty??-1),
                   ),
                   _buildInfoItem(
                     '状态',
