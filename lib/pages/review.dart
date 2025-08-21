@@ -672,6 +672,16 @@ class _ReviewState extends State<Review> {
     );
   }
 
+    //处理图片删除
+  void _handleImageDeleted(int imageID) {
+    setState(() {
+      final index = _images.indexWhere((img) => img.imageID == imageID);
+      if (index != -1) {
+        _images.removeAt(index); // 通过索引删除元素
+      }
+    });
+  }
+
   // 右侧图片详情
   Widget _buildRightDetail() {
     if (_selectedImageId == null) return const Center(child: Text('加载失败'));
@@ -684,6 +694,7 @@ class _ReviewState extends State<Review> {
         key: ValueKey<int>(selectedImage.imageID), // 添加 Key
         image: selectedImage,
         onImageUpdated: _handleImageUpdated,
+        onImageDeleted: _handleImageDeleted,
       );
     } catch (e) {
       return const Center(child: Text('加载失败'));

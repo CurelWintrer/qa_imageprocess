@@ -661,7 +661,7 @@ class _ImageDetailState extends State<ImageDetail> {
           ),
           SizedBox(height: 10),
           IconButton(
-            onPressed: () => {_deleteImage(currentImage.imageID),Navigator.pop(context)},
+            onPressed: () => {_deleteImage(currentImage.imageID)},
             icon: Icon(Icons.delete),
             tooltip: '删除',
             hoverColor: Colors.redAccent,

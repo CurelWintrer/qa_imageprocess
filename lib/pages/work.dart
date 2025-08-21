@@ -134,13 +134,14 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
 
   //处理图片删除
   void _handleImageDeleted(int imageID) {
-  setState(() {
-    final index = _images.indexWhere((img) => img.imageID == imageID);
-    if (index != -1) {
-      _images.removeAt(index); // 通过索引删除元素
-    }
-  });
-}
+    setState(() {
+      final index = _images.indexWhere((img) => img.imageID == imageID);
+      if (index != -1) {
+        _images.removeAt(index); // 通过索引删除元素
+      }
+    });
+    Navigator.pop(context);
+  }
 
   // 打开图片详情弹窗
   void _openImageDetail(ImageModel image) {
