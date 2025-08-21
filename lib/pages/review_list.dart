@@ -48,7 +48,7 @@ class _ReviewListState extends State<ReviewList> {
           'Content-Type': 'application/json',
         },
       );
-      print(response.body);
+      // print(response.body);
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body)['data'];
         final List<dynamic> items = data['works'];
@@ -74,9 +74,9 @@ class _ReviewListState extends State<ReviewList> {
             }
           }
         });
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('任务加载成功')));
+        // ScaffoldMessenger.of(
+        //   context,
+        // ).showSnackBar(SnackBar(content: Text('任务加载成功')));
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('API错误: ${response.statusCode}')),

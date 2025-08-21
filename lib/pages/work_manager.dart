@@ -236,7 +236,7 @@ class _WorkManagerState extends State<WorkManager> {
     );
   }
 
-  // 修复普通下拉框 - 显式使用 String?
+  // 普通下拉框 - 显式使用 String?
   Widget _buildLevelDropdown({
     required String? value,
     required List<String> options,
@@ -531,24 +531,6 @@ class _WorkManagerState extends State<WorkManager> {
     );
   }
 
-  // 窄屏布局
-  // Widget _buildNarrowScreenLayout(WorkModel work) {
-  //   return Column(
-  //     crossAxisAlignment: CrossAxisAlignment.start,
-  //     children: [
-  //       Row(
-  //         children: [
-  //           Expanded(child: _buildTaskInfo(work)),
-  //           _buildStatusBadge(work),
-  //         ],
-  //       ),
-  //       const SizedBox(height: 12),
-  //       _buildProgressInfo(work),
-  //       const SizedBox(height: 12),
-  //       _buildActionButtons(work),
-  //     ],
-  //   );
-  // }
 
   // 任务基本信息
   Widget _buildTaskInfo(WorkModel work) {

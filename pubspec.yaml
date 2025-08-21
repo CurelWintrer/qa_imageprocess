@@ -43,6 +43,10 @@ dependencies:
   collection: ^1.19.1
   dio: ^5.8.0+1
   cached_network_image: ^3.4.1
+  file_selector: ^1.0.3
+  path_provider: ^2.1.5
+  date_format: ^2.0.9
+  intl: ^0.20.2
 
 
 dev_dependencies:

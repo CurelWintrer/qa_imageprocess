@@ -265,6 +265,7 @@ class _GetRepeatedImageState extends State<GetRepeatedImage> {
                   ),
                 ),
               ],
+              Text('${image.category}')
             ],
           ),
         ],
