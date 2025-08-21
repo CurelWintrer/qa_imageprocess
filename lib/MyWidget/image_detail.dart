@@ -12,17 +12,20 @@ import 'package:qa_imageprocess/tools/ai_service.dart';
 import 'package:qa_imageprocess/user_session.dart';
 
 typedef ImageUpdateCallback = void Function(ImageModel updatedImage);
+typedef ImageDeleteCallback = void Function(int imageID);
 
 class ImageDetail extends StatefulWidget {
   final ImageModel image;
   final VoidCallback? onClose;
   final ImageUpdateCallback onImageUpdated;
+  final ImageDeleteCallback? onImageDeleted;
 
   const ImageDetail({
     super.key,
     required this.image,
     this.onClose,
     required this.onImageUpdated,
+    this.onImageDeleted,
   });
 
   @override
@@ -590,6 +593,35 @@ class _ImageDetailState extends State<ImageDetail> {
     }
   }
 
+  //删除图片
+  Future<void> _deleteImage(int imageID) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('${UserSession().baseUrl}/api/image/$imageID'),
+        headers: {
+          'Authorization': 'Bearer ${UserSession().token ?? ''}',
+          'Content-Type': 'application/json',
+        },
+      );
+      if (response.statusCode == 200) {
+        if(mounted){
+          widget.onImageDeleted!(imageID);
+        }
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('删除成功')));
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('删除失败')));
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('删除失败')));
+    }
+  }
+
   // 构建信息列（右侧/下方内容）
   Widget _buildInfoColumn() {
     return SingleChildScrollView(
@@ -614,7 +646,8 @@ class _ImageDetailState extends State<ImageDetail> {
                   _buildInfoItem('采集类型', currentImage.collectorType),
                   _buildInfoItem('问题方向', currentImage.questionDirection),
                   _buildInfoItem(
-                    '难度',ImageState.getDifficulty(currentImage.difficulty??-1),
+                    '难度',
+                    ImageState.getDifficulty(currentImage.difficulty ?? -1),
                   ),
                   _buildInfoItem(
                     '状态',
@@ -625,6 +658,13 @@ class _ImageDetailState extends State<ImageDetail> {
                 ],
               ),
             ),
+          ),
+          SizedBox(height: 10),
+          IconButton(
+            onPressed: () => {_deleteImage(currentImage.imageID),Navigator.pop(context)},
+            icon: Icon(Icons.delete),
+            tooltip: '删除',
+            hoverColor: Colors.redAccent,
           ),
 
           // 问题和答案区域

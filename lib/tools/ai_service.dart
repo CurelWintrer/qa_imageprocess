@@ -51,60 +51,61 @@ class AiService {
   }
 
   static Future<QaResponse?> getQA(ImageModel image) async {
-  try {
-    // 1. 发送请求
-    final response = await http.post(
-      Uri.parse(UserSession().apiUrl),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ${UserSession().apiKey}',
-      },
-      body: await _getRequestBody(image),
-    );
+    try {
+      // 1. 发送请求
+      final response = await http.post(
+        Uri.parse(UserSession().apiUrl),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${UserSession().apiKey}',
+        },
+        body: await _getRequestBody(image),
+      );
 
-    // 2. 检查HTTP状态码
-    if (response.statusCode != 200) {
-      throw HttpException('请求失败，状态码: ${response.statusCode}');
+      // 2. 检查HTTP状态码
+      if (response.statusCode != 200) {
+        throw HttpException('请求失败，状态码: ${response.statusCode}');
+      }
+
+      // 3. 解析响应体
+      final responseBody = jsonDecode(response.body) as Map<String, dynamic>;
+      print(responseBody);
+
+      // 4. 提取content内容
+      final content = _extractContent(responseBody);
+      if (content == null) {
+        throw FormatException('响应中缺少有效content');
+      }
+
+      // 5. 解析为QaResponse对象
+      return QaResponse.parseContent(content);
+    } on http.ClientException catch (e) {
+      print('网络请求异常: $e');
+      return null;
+    } on FormatException catch (e) {
+      print('JSON解析失败: $e');
+      return null;
+    } catch (e) {
+      print('未知错误: $e');
+      return null;
     }
+  }
 
-    // 3. 解析响应体
-    final responseBody = jsonDecode(response.body) as Map<String, dynamic>;
-    print(responseBody);
-    
-    // 4. 提取content内容
-    final content = _extractContent(responseBody);
-    if (content == null) {
-      throw FormatException('响应中缺少有效content');
+  // 辅助方法：从响应体中提取content
+  static String? _extractContent(Map<String, dynamic> responseBody) {
+    try {
+      final choices = responseBody['choices'] as List;
+      if (choices.isEmpty) return null;
+
+      final firstChoice = choices.first as Map<String, dynamic>;
+      return firstChoice['message']['content'] as String;
+    } catch (e) {
+      return null;
     }
-
-    // 5. 解析为QaResponse对象
-    return QaResponse.parseContent(content);
-  } on http.ClientException catch (e) {
-    print('网络请求异常: $e');
-    return null;
-  } on FormatException catch (e) {
-    print('JSON解析失败: $e');
-    return null;
-  } catch (e) {
-    print('未知错误: $e');
-    return null;
   }
-}
-// 辅助方法：从响应体中提取content
-static String? _extractContent(Map<String, dynamic> responseBody) {
-  try {
-    final choices = responseBody['choices'] as List;
-    if (choices.isEmpty) return null;
-    
-    final firstChoice = choices.first as Map<String, dynamic>;
-    return firstChoice['message']['content'] as String;
-  } catch (e) {
-    return null;
-  }
-}
 
   static String getPrompt(List<CategoryModel> categorys, ImageModel image) {
-    print(image.category);
+    // print(image.category);
     CategoryModel? category = categorys.firstWhere(
       (item) => item.categoryName == image.category,
     );
@@ -114,7 +115,7 @@ static String? _extractContent(Map<String, dynamic> responseBody) {
     ${category.difficulties[image.difficulty ?? 0]};
     提问主体：${image.collectorType};
     问题方向：${image.questionDirection};
-    难度等级：${image.difficulty}(${ImageState.getDifficulty(image.difficulty??0)})
+    难度等级：${image.difficulty}(${ImageState.getDifficulty(image.difficulty ?? 0)})
     问题参考样例：
     ${category.example}
     【重要要求】：
@@ -145,7 +146,7 @@ static String? _extractContent(Map<String, dynamic> responseBody) {
           ],
         },
       ],
-      'max_tokens': 3000, 
+      'max_tokens': 3000,
       'temperature': 0.7,
     };
 
@@ -165,5 +166,4 @@ static String? _extractContent(Map<String, dynamic> responseBody) {
       throw Exception('图片处理错误: $e');
     }
   }
-  
 }

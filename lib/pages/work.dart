@@ -132,6 +132,16 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
     });
   }
 
+  //处理图片删除
+  void _handleImageDeleted(int imageID) {
+  setState(() {
+    final index = _images.indexWhere((img) => img.imageID == imageID);
+    if (index != -1) {
+      _images.removeAt(index); // 通过索引删除元素
+    }
+  });
+}
+
   // 打开图片详情弹窗
   void _openImageDetail(ImageModel image) {
     showDialog(
@@ -145,6 +155,7 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
             image: image,
             onImageUpdated: _handleImageUpdated,
             onClose: () => Navigator.pop(context),
+            onImageDeleted: _handleImageDeleted,
           ),
         );
       },
@@ -152,43 +163,50 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
   }
 
   void _openReturnReasonAndRemark() {
-  showDialog(
-    context: context,
-    barrierDismissible: true,
-    useSafeArea: true,
-    builder: (context) {
-      return AlertDialog(
-        insetPadding: const EdgeInsets.all(20),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-        title: Row(
-          children: [
-            const Icon(Icons.warning, color: Colors.red),
-            const SizedBox(width: 10),
-            const Text('打回详情',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
-            const Spacer(),
-            IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: () => Navigator.pop(context),
-              tooltip: '关闭',
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (_work!.returnReason != null && _work!.returnReason!.isNotEmpty)
-              ...[
-                const Text('打回原因：',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.red,
-                      fontSize: 16,
-                    )),
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      useSafeArea: true,
+      builder: (context) {
+        return AlertDialog(
+          insetPadding: const EdgeInsets.all(20),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: 16,
+            horizontal: 24,
+          ),
+          title: Row(
+            children: [
+              const Icon(Icons.warning, color: Colors.red),
+              const SizedBox(width: 10),
+              const Text(
+                '打回详情',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+              ),
+              const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.pop(context),
+                tooltip: '关闭',
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (_work!.returnReason != null &&
+                  _work!.returnReason!.isNotEmpty) ...[
+                const Text(
+                  '打回原因：',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red,
+                    fontSize: 16,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -208,15 +226,16 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
                 ),
                 const SizedBox(height: 20),
               ],
-            
-            if (_work!.remark != null && _work!.remark!.isNotEmpty)
-              ...[
-                const Text('备注说明：',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue,
-                      fontSize: 16,
-                    )),
+
+              if (_work!.remark != null && _work!.remark!.isNotEmpty) ...[
+                const Text(
+                  '备注说明：',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue,
+                    fontSize: 16,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -235,24 +254,27 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
                   ),
                 ),
               ],
-            
-            if ((_work!.returnReason == null || _work!.returnReason!.isEmpty) &&
-                (_work!.remark == null || _work!.remark!.isEmpty))
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 16),
-                child: Text('暂无打回信息',
+
+              if ((_work!.returnReason == null ||
+                      _work!.returnReason!.isEmpty) &&
+                  (_work!.remark == null || _work!.remark!.isEmpty))
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Text(
+                    '暂无打回信息',
                     style: TextStyle(
                       fontSize: 16,
                       fontStyle: FontStyle.italic,
                       color: Colors.grey,
-                    )),
-              ),
-          ],
-        ),
-      );
-    },
-  );
-}
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -260,7 +282,10 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
       appBar: AppBar(
         title: Text('Work #${widget.workID}'),
         actions: [
-          IconButton(onPressed: () => {_openReturnReasonAndRemark()}, icon: Icon(Icons.tips_and_updates)),
+          IconButton(
+            onPressed: () => {_openReturnReasonAndRemark()},
+            icon: Icon(Icons.tips_and_updates),
+          ),
           SizedBox(width: 20),
           if (_isInSelectionMode) ...[
             IconButton(
@@ -354,6 +379,7 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
                   return _buildLoadMoreIndicator();
                 }
                 return GestureDetector(
+                  key: ValueKey(_images[index].imageID),
                   onTap: () => _openImageDetail(_images[index]),
                   child: _buildGridItem(_images[index]),
                 );
@@ -427,141 +453,145 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
     // 检查当前图片是否正在处理中
     final bool isProcessing = _processingImageIDs.contains(image.imageID);
     final bool isSelected = _selectedImageIDs.contains(image.imageID);
-    return GestureDetector(
-      onLongPress: () => {
-        setState(() {
-          _isInSelectionMode = true;
-          _toggleImageSelection(image.imageID);
-        }),
-      },
-      onTap: () {
-        if (_isInSelectionMode) {
-          setState(() => _toggleImageSelection(image.imageID));
-        } else {
-          _openImageDetail(image);
-        }
-      },
-      child: Stack(
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 图片区域
-              Expanded(
-                flex: 3,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    // 图片显示
-                    image.path?.isNotEmpty == true
-                        ? CachedNetworkImage(
-                            imageUrl: '${UserSession().baseUrl}/${image.path}',
-                            fit: BoxFit.cover,
-                            placeholder: (context, url) => Container(
+    return Container(
+      key: ValueKey(image.imageID),
+      child: GestureDetector(
+        onLongPress: () => {
+          setState(() {
+            _isInSelectionMode = true;
+            _toggleImageSelection(image.imageID);
+          }),
+        },
+        onTap: () {
+          if (_isInSelectionMode) {
+            setState(() => _toggleImageSelection(image.imageID));
+          } else {
+            _openImageDetail(image);
+          }
+        },
+        child: Stack(
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 图片区域
+                Expanded(
+                  flex: 3,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      // 图片显示
+                      image.path?.isNotEmpty == true
+                          ? CachedNetworkImage(
+                              imageUrl:
+                                  '${UserSession().baseUrl}/${image.path}',
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => Container(
+                                color: Colors.grey[200],
+                                child: const Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                              ),
+                              errorWidget: (context, url, error) => Container(
+                                color: Colors.grey[200],
+                                child: const Center(child: Icon(Icons.error)),
+                              ),
+                            )
+                          : Container(
                               color: Colors.grey[200],
                               child: const Center(
-                                child: CircularProgressIndicator(),
+                                child: Icon(Icons.image_not_supported),
                               ),
                             ),
-                            errorWidget: (context, url, error) => Container(
-                              color: Colors.grey[200],
-                              child: const Center(child: Icon(Icons.error)),
-                            ),
-                          )
-                        : Container(
-                            color: Colors.grey[200],
-                            child: const Center(
-                              child: Icon(Icons.image_not_supported),
-                            ),
-                          ),
 
-                    // 图片状态标签（悬浮在右上角）
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: _buildImageStatusBadge(image.state),
-                    ),
-                  ],
-                ),
-              ),
-              Row(
-                children: [
-                  // 图片信息
-                  Padding(
-                    padding: const EdgeInsets.only(left: 10),
-                    child: Text(
-                      '#${image.imageID}',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
+                      // 图片状态标签（悬浮在右上角）
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: _buildImageStatusBadge(image.state),
                       ),
-                    ),
-                  ),
-                  Spacer(),
-                  //快捷AI更新QA按钮
-                  Padding(
-                    padding: const EdgeInsets.only(right: 10),
-                    child: IconButton(
-                      onPressed: () => {_executeAITask(image)},
-                      icon: Icon(Icons.auto_awesome),
-                      iconSize: 20,
-                      tooltip: 'AI-QA',
-                    ),
-                  ),
-                ],
-              ),
-
-              // 问题摘要（显示第一个问题）
-              if (firstQuestion != null) ...[
-                const Divider(height: 1),
-                Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // 问题文本
-                      Text(
-                        firstQuestion.questionText,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 13),
-                      ),
-
-                      const SizedBox(height: 6),
-
-                      // 答案选项显示
-                      _buildAnswerIndicators(firstQuestion),
                     ],
                   ),
                 ),
-              ],
-              // 多选框（只有在多选模式显示）
-              if (_isInSelectionMode)
-                Positioned(
-                  top: 8,
-                  left: 8,
-                  child: Checkbox(
-                    value: isSelected,
-                    onChanged: (value) => setState(() {
-                      _toggleImageSelection(image.imageID);
-                    }),
-                  ),
+                Row(
+                  children: [
+                    // 图片信息
+                    Padding(
+                      padding: const EdgeInsets.only(left: 10),
+                      child: Text(
+                        '#${image.imageID}',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    Spacer(),
+                    //快捷AI更新QA按钮
+                    Padding(
+                      padding: const EdgeInsets.only(right: 10),
+                      child: IconButton(
+                        onPressed: () => {_executeAITask(image)},
+                        icon: Icon(Icons.auto_awesome),
+                        iconSize: 20,
+                        tooltip: 'AI-QA',
+                      ),
+                    ),
+                  ],
                 ),
-            ],
-          ),
-          if (isProcessing)
-            Positioned.fill(
-              child: Container(
-                color: Colors.black54,
-                child: Center(
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 3.0,
+
+                // 问题摘要（显示第一个问题）
+                if (firstQuestion != null) ...[
+                  const Divider(height: 1),
+                  Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 问题文本
+                        Text(
+                          firstQuestion.questionText,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 13),
+                        ),
+
+                        const SizedBox(height: 6),
+
+                        // 答案选项显示
+                        _buildAnswerIndicators(firstQuestion),
+                      ],
+                    ),
+                  ),
+                ],
+                // 多选框（只有在多选模式显示）
+                if (_isInSelectionMode)
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: Checkbox(
+                      value: isSelected,
+                      onChanged: (value) => setState(() {
+                        _toggleImageSelection(image.imageID);
+                      }),
+                    ),
+                  ),
+              ],
+            ),
+            if (isProcessing)
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black54,
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 3.0,
+                    ),
                   ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
