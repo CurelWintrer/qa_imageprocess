@@ -153,7 +153,6 @@ class ExportService {
                     image,
                     question,
                     path.join(
-                      dateFolder,
                       category,
                       collectorType,
                       path.basename(imageFile.path),
