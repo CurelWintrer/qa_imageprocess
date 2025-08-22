@@ -152,78 +152,39 @@ class _ReviewState extends State<Review> {
     });
   }
 
-  Widget _buildTitleRow(ImageModel image) {
-  return Row(
-    mainAxisAlignment: MainAxisAlignment.spaceBetween, // 使用空间分布替代Spacer
-    children: [
-      // 左侧内容（ID + 状态标签）
-      Row(
-        children: [
-          Text(
-            '#${image.imageID}',
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(width: 6),
-          _buildImageStatusBadge(image.state),
-        ],
-      ),
-      // 右侧按钮（替代Spacer + IconButton）
-      IconButton(
-        onPressed: () => _executeAITask(image),
-        icon: Icon(Icons.auto_awesome),
-        iconSize: 20,
-        tooltip: 'AI-QA',
-      ),
-    ],
-  );
-}
-
-  // 构建左侧列表项
   Widget _buildLeftListItem(ImageModel image) {
-    final firstQuestion = image.questions?.isNotEmpty == true
-        ? image.questions?.first
-        : null;
+  final bool isProcessing = _processingImageIDs.contains(image.imageID);
+  final bool isSelected = _selectedImageIDs.contains(image.imageID);
+  final bool isCurrentSelected = _selectedImageId == image.imageID;
+  final bool showCheckbox = _isInSelectionMode;
+  final bool isAllSelected =
+      _isInSelectionMode && _selectedImageIDs.length == _images.length;
 
-    final bool isProcessing = _processingImageIDs.contains(image.imageID);
-    final bool isSelected = _selectedImageIDs.contains(image.imageID);
-    final bool isCurrentSelected = _selectedImageId == image.imageID;
-    final bool showCheckbox = _isInSelectionMode; // 控制是否显示多选框
-    final bool isAllSelected =
-        _isInSelectionMode && _selectedImageIDs.length == _images.length;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: isCurrentSelected
-            ? Colors.blue.withOpacity(0.1)
-            : Colors.transparent,
-        border: Border(
-          bottom: BorderSide(color: Colors.grey.shade200),
-          // 添加全选状态标记 - 蓝色边框
-          top: isAllSelected
-              ? BorderSide(color: Colors.blue, width: 2)
-              : BorderSide.none,
-          left: isAllSelected
-              ? BorderSide(color: Colors.blue, width: 2)
-              : BorderSide.none,
-          right: isAllSelected
-              ? BorderSide(color: Colors.blue, width: 2)
-              : BorderSide.none,
-        ),
+  return Container(
+    margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(
+      color: isCurrentSelected
+          ? Colors.blue.withOpacity(0.1)
+          : Colors.transparent,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(
+        color: isAllSelected
+            ? Colors.blue
+            : isCurrentSelected
+                ? Colors.blue
+                : Colors.grey.shade200,
+        width: isAllSelected ? 2 : 1,
       ),
-      child: Stack(
-        children: [
-          ListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 8,
-              vertical: 4,
-            ),
-            // onTap: () => setState(() => _selectedImageId = image.imageID),
+    ),
+    child: Stack(
+      children: [
+        // 内容区域
+        IntrinsicHeight(
+          child: InkWell(
             onTap: () {
               if (_isInSelectionMode) {
-                // 多选模式：切换当前图片的选中状态
                 setState(() => _toggleImageSelection(image.imageID));
               } else {
-                // 普通模式：选中图片并显示详情
                 setState(() => _selectedImageId = image.imageID);
               }
             },
@@ -233,82 +194,114 @@ class _ReviewState extends State<Review> {
                 _toggleImageSelection(image.imageID);
               });
             },
-            leading: Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: isCurrentSelected ? Colors.blue : Colors.transparent,
-                  width: 2,
-                ),
-              ),
-              child: image.path?.isNotEmpty == true
-                  ? CachedNetworkImage(
-                      imageUrl: '${UserSession().baseUrl}/${image.path}',
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(
-                        color: Colors.grey[200],
-                        child: const Center(child: CircularProgressIndicator()),
-                      ),
-                      errorWidget: (context, url, error) => Container(
-                        color: Colors.grey[200],
-                        child: const Center(child: Icon(Icons.error)),
-                      ),
-                    )
-                  : Container(
-                      color: Colors.grey[200],
-                      child: const Center(
-                        child: Icon(Icons.image_not_supported),
-                      ),
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 图片区域
+                  Container(
+                    width: 300,
+                    height: 180,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
                     ),
-            ),
-            title: _buildTitleRow(image),
-            subtitle: firstQuestion != null
-                ? Column(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: image.path?.isNotEmpty == true
+                          ? CachedNetworkImage(
+                              imageUrl:
+                                  '${UserSession().baseUrl}/${image.path}',
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => Container(
+                                color: Colors.grey[200],
+                                child: const Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                              ),
+                              errorWidget: (context, url, error) => Container(
+                                color: Colors.grey[200],
+                                child: const Center(
+                                  child: Icon(Icons.error, size: 30),
+                                ),
+                              ),
+                            )
+                          : Container(
+                              color: Colors.grey[200],
+                              child: const Center(
+                                child: Icon(
+                                  Icons.image_not_supported,
+                                  size: 30,
+                                ),
+                              ),
+                            ),
+                    ),
+                  ),
+
+                  const SizedBox(width: 12),
+
+                  // 图片ID和状态标签
+                  Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // 问题文本
                       Text(
-                        firstQuestion.questionText,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 13),
+                        '#${image.imageID}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
                       ),
-                      const SizedBox(height: 4),
-                      // 答案选项显示
-                      _buildAnswerIndicators(firstQuestion),
+                      const SizedBox(height: 8),
+                      _buildImageStatusBadge(image.state),
                     ],
-                  )
-                : const Text('暂无问题'),
+                  ),
+                ],
+              ),
+            ),
           ),
-          if (showCheckbox)
-            Positioned(
-              top: 8,
-              left: 8,
+        ),
+
+        // 左上角复选框
+        if (showCheckbox)
+          Positioned(
+            top: 8,
+            left: 8,
+            child: GestureDetector(
+              onTap: () =>
+                  setState(() => _toggleImageSelection(image.imageID)),
               child: Container(
                 width: 24,
                 height: 24,
                 decoration: BoxDecoration(
                   color: isSelected ? Colors.blue : Colors.white,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(6),
                   border: Border.all(
                     color: isSelected ? Colors.blue : Colors.grey,
+                    width: 2,
                   ),
                 ),
                 child: isSelected
-                    ? Icon(Icons.check, size: 16, color: Colors.white)
+                    ? Icon(Icons.check, size: 18, color: Colors.white)
                     : null,
               ),
             ),
+          ),
 
-          // 添加处理中覆盖层和加载动画
-          if (isProcessing)
-            Positioned.fill(
+        // 处理中覆盖层
+        if (isProcessing)
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
               child: Container(
                 color: Colors.black26,
                 child: Center(
                   child: Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.blue.shade800,
                       borderRadius: BorderRadius.circular(20),
@@ -335,10 +328,11 @@ class _ReviewState extends State<Review> {
                 ),
               ),
             ),
-        ],
-      ),
-    );
-  }
+          ),
+      ],
+    ),
+  );
+}
 
   // 多选模式相关方法
   void _toggleImageSelection(int imageID) {
@@ -672,7 +666,7 @@ class _ReviewState extends State<Review> {
     );
   }
 
-    //处理图片删除
+  //处理图片删除
   void _handleImageDeleted(int imageID) {
     setState(() {
       final index = _images.indexWhere((img) => img.imageID == imageID);
@@ -684,22 +678,315 @@ class _ReviewState extends State<Review> {
 
   // 右侧图片详情
   Widget _buildRightDetail() {
-    if (_selectedImageId == null) return const Center(child: Text('加载失败'));
+  if (_selectedImageId == null) return const Center(child: Text('请从左侧选择一张图片'));
 
-    try {
-      final selectedImage = _images.firstWhere(
-        (img) => img.imageID == _selectedImageId,
-      );
-      return ImageDetail(
-        key: ValueKey<int>(selectedImage.imageID), // 添加 Key
-        image: selectedImage,
-        onImageUpdated: _handleImageUpdated,
-        onImageDeleted: _handleImageDeleted,
-      );
-    } catch (e) {
-      return const Center(child: Text('加载失败'));
-    }
+  try {
+    final selectedImage = _images.firstWhere(
+      (img) => img.imageID == _selectedImageId,
+    );
+    
+    return Row(
+      children: [
+        // 左侧图片区域 (1/2宽度)
+        Expanded(
+          flex: 1,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: InteractiveViewer(
+              boundaryMargin: EdgeInsets.all(20),
+              minScale: 0.1,
+              maxScale: 4.0,
+              child: selectedImage.path?.isNotEmpty == true
+                  ? CachedNetworkImage(
+                      imageUrl: '${UserSession().baseUrl}/${selectedImage.path}',
+                      fit: BoxFit.contain,
+                      placeholder: (context, url) => Container(
+                        color: Colors.grey[200],
+                        child: const Center(
+                          child: CircularProgressIndicator(),
+                        ),
+                      ),
+                      errorWidget: (context, url, error) => Container(
+                        color: Colors.grey[200],
+                        child: const Center(
+                          child: Icon(Icons.error, size: 30),
+                        ),
+                      ),
+                    )
+                  : Container(
+                      color: Colors.grey[200],
+                      child: const Center(
+                        child: Icon(
+                          Icons.image_not_supported,
+                          size: 30,
+                        ),
+                      ),
+                    ),
+            ),
+          ),
+        ),
+        
+        // 右侧信息区域 (1/2宽度)
+        Expanded(
+          flex: 1,
+          child: _buildInfoColumn(selectedImage),
+        ),
+      ],
+    );
+  } catch (e) {
+    return const Center(child: Text('加载失败'));
   }
+}
+
+Widget _buildInfoColumn(ImageModel image) {
+  return SingleChildScrollView(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 基本信息区域
+        Card(
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+            side: BorderSide(color: Colors.grey.shade300, width: 1),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 基本信息
+                _buildInfoItem('文件名', image.fileName ?? '未命名'),
+                _buildInfoItem('分类', image.category),
+                _buildInfoItem('采集类型', image.collectorType),
+                _buildInfoItem('问题方向', image.questionDirection),
+                _buildInfoItem(
+                  '难度',
+                  ImageState.getDifficulty(image.difficulty ?? -1),
+                ),
+                _buildInfoItem(
+                  '状态',
+                  ImageState.getStateText(image.state),
+                ),
+                _buildInfoItem('创建日期', image.created_at),
+                _buildInfoItem('更新日期', image.updated_at),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        IconButton(
+          onPressed: () => {_handleImageDeleted(image.imageID)},
+          icon: const Icon(Icons.delete),
+          tooltip: '删除',
+          hoverColor: Colors.redAccent,
+        ),
+
+        // 问题和答案区域
+        Padding(
+          padding: const EdgeInsets.only(top: 16),
+          child: Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+              side: BorderSide(color: Colors.grey.shade300, width: 1),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      // AI-QA按钮
+                      IconButton(
+                        onPressed: _processingImageIDs.contains(image.imageID) 
+                            ? null 
+                            : () => _executeAITask(image),
+                        icon: const Icon(Icons.auto_awesome),
+                        tooltip: 'AI-QA',
+                      ),
+                      const SizedBox(width: 20),
+                    ],
+                  ),
+
+                  // 标题
+                  const Text(
+                    '题目内容',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: Colors.blue,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 问题和答案展示
+                  if (image.questions != null && image.questions!.isNotEmpty)
+                    ...image.questions!
+                        .map((question) => _buildQuestionAnswer(question))
+                        .toList()
+                  else
+                    const Text('暂无题目内容'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+Widget _buildInfoItem(String label, String value) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 80,
+          child: Text(
+            '$label:',
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.grey,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(value.isNotEmpty ? value : '未设置'),
+        ),
+      ],
+    ),
+  );
+}
+
+  Widget _buildQuestionAnswer(QuestionModel question) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          question.questionText,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+        const SizedBox(height: 8),
+        _buildAnswerIndicators(question),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  // 正确答案指示器
+  Widget _buildAnswerIndicators(QuestionModel question) {
+    if (question.answers.isEmpty) return const SizedBox();
+
+    // 找到正确答案
+    final rightAnswerId = question.rightAnswer.answerID;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 答案指示器
+        Wrap(
+          spacing: 4,
+          runSpacing: 4,
+          children: question.answers.asMap().entries.map((entry) {
+            final index = entry.key;
+            final answer = entry.value;
+            final isCorrect = answer.answerID == rightAnswerId;
+            final letter = String.fromCharCode(65 + index); // A, B, C...
+
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: isCorrect ? Colors.green[100] : Colors.grey[100],
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(
+                  color: isCorrect ? Colors.green : Colors.grey.shade300,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '$letter.',
+                    style: TextStyle(
+                      color: isCorrect ? Colors.green : Colors.black54,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  Text(
+                    answer.answerText,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isCorrect ? Colors.green : Colors.black,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
+
+        const SizedBox(height: 16),
+
+        // 解析部分
+        if (question.explanation?.isNotEmpty ?? false) ...[
+          const Text(
+            '解析:',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: Colors.blue,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.blue[50],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              question.explanation!,
+              style: const TextStyle(fontSize: 13),
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+
+        // 思维链部分
+        if (question.textCOT?.isNotEmpty ?? false) ...[
+          const Text(
+            '解题思维链：',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: Colors.purple,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.purple[50],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              question.textCOT!,
+              style: const TextStyle(fontSize: 13),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
 
   Future<void> _executeAITask(ImageModel image) async {
     if (mounted) {
@@ -749,51 +1036,7 @@ class _ReviewState extends State<Review> {
     }
   }
 
-  Widget _buildAnswerIndicators(QuestionModel question) {
-    final rightAnswerId = question.rightAnswer.answerID;
-    return Wrap(
-      spacing: 4,
-      runSpacing: 4,
-      children: question.answers.asMap().entries.map((entry) {
-        final index = entry.key;
-        final answer = entry.value;
-        final isCorrect = answer.answerID == rightAnswerId;
-        final letter = String.fromCharCode(65 + index);
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-          decoration: BoxDecoration(
-            color: isCorrect ? Colors.green[100] : Colors.grey[100],
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(
-              color: isCorrect ? Colors.green : Colors.grey.shade300,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '$letter.',
-                style: TextStyle(
-                  color: isCorrect ? Colors.green : Colors.black54,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(width: 2),
-              Text(
-                answer.answerText,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isCorrect ? Colors.green : Colors.black,
-                ),
-              ),
-            ],
-          ),
-        );
-      }).toList(),
-    );
-  }
+  
 
   Widget _buildImageStatusBadge(int state) {
     return Container(

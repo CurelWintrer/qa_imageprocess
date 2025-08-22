@@ -117,15 +117,15 @@ class AiService {
       (item) => item.categoryName == image.category,
     );
     print(category.categoryName);
-    return '''请仔细观察这张图片，基于图片内容生成一个${category.categoryName}类问题。${category.prompt}
-    问题必须符合以下要求：
+    return '''请仔细观察这张图片，基于图片内容生成一个${category.categoryName}类问题，问题难度为${image.difficulty}(${ImageState.getDifficulty(image.difficulty ?? 0)}。
+    问题需要${category.prompt}
+    问题要具备：
     ${category.difficulties[image.difficulty ?? 0]};
     当前图片提问方向：${image.collectorType}的${image.questionDirection};
-    难度等级：${image.difficulty}(${ImageState.getDifficulty(image.difficulty ?? 0)});
     ${getPromptRule(image,questionDifficulty: questionDifficulty)};
     【输出格式要求】：
-    $formatRule
-    (correct_answer是正确答案位置索引);
+    $formatRule；
+    (correct_answer是正确答案位置索引，解题步骤要精简，逻辑清晰);
     ''';
   }
   //    问题参考样例：
@@ -141,7 +141,7 @@ class AiService {
           ''';
           case 1:
           return '''
-            画面主体是${image.category},你要对画面主体的${image.questionDirection}结合相关的外部知识进行提问，满足较复杂的推理性问题;
+            画面主体是${image.category},你要对画面主体的${image.questionDirection}结合相关进行提问，满足较复杂的推理性问题;
           ''';
           default:
           return '';

@@ -806,7 +806,7 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
               const SizedBox(width: 2),
               Text(
                 answer.answerText,
-                maxLines: 1,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 12,
