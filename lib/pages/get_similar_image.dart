@@ -1,7 +1,12 @@
 import 'dart:convert';
-
+import 'dart:io';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:path/path.dart' as path;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:qa_imageprocess/model/image_model.dart';
+import 'package:qa_imageprocess/model/image_state.dart';
+import 'package:qa_imageprocess/model/question_model.dart';
 import 'package:qa_imageprocess/user_session.dart';
 
 class GetSimilarImage extends StatefulWidget {
@@ -12,8 +17,7 @@ class GetSimilarImage extends StatefulWidget {
 }
 
 class _GetSimilarImageState extends State<GetSimilarImage> {
-
-    // 类目相关状态
+  // 类目相关状态
   List<Map<String, dynamic>> _categories = [];
   String? _selectedCategoryId;
 
@@ -25,24 +29,310 @@ class _GetSimilarImageState extends State<GetSimilarImage> {
   List<Map<String, dynamic>> _questionDirections = [];
   String? _selectedQuestionDirectionId;
 
+  String? _selectedFolderPath;
+
+  List<ImageModel> _images = [];
+
+  //分页参数
+  int _currentPage = 1;
+  int _pageSize = 30;
+  bool _isLoading = false;
+
   @override
-  void initState(){
+  void initState() {
     super.initState();
     _fetchCategories();
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('相似查询')),
-      body: Column(
+      body: Column(children: [_buildTitleSelector()]),
+    );
+  }
+
+  //查询图片
+  Future<void> _fetchImages() async {
+    final Map<String, String> queryParams = {
+      'page': _currentPage.toString(),
+      'pageSize': _pageSize.toString(),
+    };
+
+    // 添加可选参数
+    if (_selectedCategoryId != null) {
+      final category = _categories.firstWhere(
+        (c) => c['id'] == _selectedCategoryId,
+        orElse: () => {'name': ''},
+      );
+      queryParams['category'] = category['name'];
+    }
+
+    if (_selectedCollectorTypeId != null) {
+      final collectorType = _collectorTypes.firstWhere(
+        (c) => c['id'] == _selectedCollectorTypeId,
+        orElse: () => {'name': ''},
+      );
+      queryParams['collector_type'] = collectorType['name'];
+    }
+
+    if (_selectedQuestionDirectionId != null) {
+      final questionDirection = _questionDirections.firstWhere(
+        (q) => q['id'] == _selectedQuestionDirectionId,
+        orElse: () => {'name': ''},
+      );
+      queryParams['question_direction'] = questionDirection['name'];
+    }
+
+    // 构建URL
+    final uri = Uri.parse(
+      '${UserSession().baseUrl}/api/image',
+    ).replace(queryParameters: queryParams);
+
+    try {
+      // 发送请求
+      final response = await http.get(
+        uri,
+        headers: {'Authorization': 'Bearer ${UserSession().token ?? ''}'},
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final pagination = data['data'];
+        final imageData = pagination['data'] as List;
+        final totalPages = pagination['totalPages'];
+
+        setState(() {
+          _isLoading = false;
+
+          if (_currentPage == 1) {
+            _images = imageData.map((img) => ImageModel.fromJson(img)).toList();
+          } else {
+            _images.addAll(imageData.map((img) => ImageModel.fromJson(img)));
+          }
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('网络错误图片查询失败${response.statusCode}')),
+        );
+        _isLoading = false;
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('图片查询失败$e')));
+      _isLoading = false;
+    }
+  }
+
+  //根据文件名和类目查询图片
+  Future<void> _fetchImagesByName() async{
+        // 添加可选参数
+    if (_selectedCategoryId != null) {
+      final category = _categories.firstWhere(
+        (c) => c['id'] == _selectedCategoryId,
+        orElse: () => {'name': ''},
+      );
+      try{
+        final response =await http.post(Uri.parse('${UserSession().baseUrl}/api/image/search'),
+        headers: {'Authorization': 'Bearer ${UserSession().token ?? ''}'}
+        // body: 
+        );
+      }catch(e){
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('图片获取失败$e')));
+      }
+    }
+  }
+  Future<void> _runPythonScript() async {
+    final script = path.join(
+      '${UserSession().getRepetPath}',
+      'script.exe',
+    );
+    final result = await Process.run(script, ["${_selectedFolderPath}"]);
+  }
+
+  Widget _buildGridItem(ImageModel image) {
+    final firstQuestion = image.questions?.isNotEmpty == true
+        ? image.questions?.first
+        : null;
+
+    return GestureDetector(
+      onLongPress: () => {},
+      onTap: () {},
+      child: Stack(
         children: [
-          _buildTitleSelector()
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 图片区域
+              Expanded(
+                flex: 3,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // 图片显示
+                    image.path?.isNotEmpty == true
+                        ? CachedNetworkImage(
+                            imageUrl: '${UserSession().baseUrl}/${image.path}',
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => Container(
+                              color: Colors.grey[200],
+                              child: const Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                            ),
+                            errorWidget: (context, url, error) => Container(
+                              color: Colors.grey[200],
+                              child: const Center(child: Icon(Icons.error)),
+                            ),
+                          )
+                        : Container(
+                            color: Colors.grey[200],
+                            child: const Center(
+                              child: Icon(Icons.image_not_supported),
+                            ),
+                          ),
+
+                    // 图片状态标签（悬浮在右上角）
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: _buildImageStatusBadge(image.state),
+                    ),
+                  ],
+                ),
+              ),
+              Row(
+                children: [
+                  // 图片信息
+                  Padding(
+                    padding: const EdgeInsets.only(left: 10),
+                    child: Text(
+                      '#${image.imageID}',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  Spacer(),
+                  //快捷AI更新QA按钮
+                  Padding(
+                    padding: const EdgeInsets.only(right: 10),
+                    child: IconButton(
+                      onPressed: () => {},
+                      icon: Icon(Icons.auto_awesome),
+                      iconSize: 20,
+                      tooltip: 'AI-QA',
+                    ),
+                  ),
+                ],
+              ),
+
+              // 问题摘要（显示第一个问题）
+              if (firstQuestion != null) ...[
+                const Divider(height: 1),
+                Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 问题文本
+                      Text(
+                        firstQuestion.questionText,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 13),
+                      ),
+
+                      const SizedBox(height: 6),
+
+                      // 答案选项显示
+                      _buildAnswerIndicators(firstQuestion),
+                    ],
+                  ),
+                ),
+              ],
+              Text('${image.category}'),
+            ],
+          ),
         ],
       ),
     );
   }
 
-    Widget _buildTitleSelector() {
+  // 图片状态标签
+  Widget _buildImageStatusBadge(int state) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: ImageState.getStateColor(state).withOpacity(0.9),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: ImageState.getStateColor(state)),
+      ),
+      child: Text(
+        ImageState.getStateText(state),
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  // 答案选项指示器
+  Widget _buildAnswerIndicators(QuestionModel question) {
+    // 找到正确答案
+    final rightAnswerId = question.rightAnswer.answerID;
+
+    return Wrap(
+      spacing: 4,
+      runSpacing: 4,
+      children: question.answers.asMap().entries.map((entry) {
+        final index = entry.key;
+        final answer = entry.value;
+        final isCorrect = answer.answerID == rightAnswerId;
+        final letter = String.fromCharCode(65 + index); // A, B, C...
+
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: isCorrect ? Colors.green[100] : Colors.grey[100],
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(
+              color: isCorrect
+                  ? Colors.green
+                  : Colors.grey.shade300, // 使用 .shade 确保非空
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '$letter.',
+                style: TextStyle(
+                  color: isCorrect ? Colors.green : Colors.black54,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(width: 2),
+              Text(
+                answer.answerText,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isCorrect ? Colors.green : Colors.black,
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildTitleSelector() {
     return Container(
       padding: const EdgeInsets.all(16.0),
       decoration: BoxDecoration(
@@ -56,40 +346,41 @@ class _GetSimilarImageState extends State<GetSimilarImage> {
           ),
         ],
       ),
-      child:Row(
+      child: Row(
         children: [
-            _buildCategoryDropdown(),
-            SizedBox(width: 20),
-            _buildCollectorTypeDropdown(),
-            SizedBox(width: 20),
-            _buildQuestionDirectionDropdown(),
-            SizedBox(width: 20),
-            IconButton(onPressed: ()=>{}, icon: Icon(Icons.folder),tooltip: '选择文件夹'),
-            SizedBox(width: 20),
-            SizedBox(
-              width: 150,
-              height: 45,
-              child: ElevatedButton(
-                onPressed: () => {},
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+          _buildCategoryDropdown(),
+          SizedBox(width: 20),
+          _buildCollectorTypeDropdown(),
+          SizedBox(width: 20),
+          _buildQuestionDirectionDropdown(),
+          SizedBox(width: 20),
+          IconButton(
+            onPressed: () => {},
+            icon: Icon(Icons.folder),
+            tooltip: '选择文件夹',
+          ),
+          SizedBox(width: 20),
+          SizedBox(
+            width: 150,
+            height: 45,
+            child: ElevatedButton(
+              onPressed: () => {},
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Text('查询', style: TextStyle(fontSize: 16)),
               ),
+              child: const Text('查询', style: TextStyle(fontSize: 16)),
             ),
+          ),
         ],
       ),
     );
   }
 
-
-
-
-   Widget _buildCategoryDropdown() {
+  Widget _buildCategoryDropdown() {
     return _buildLevelDropdown(
       value: _selectedCategoryId,
       options: _categories.map((e) => e['id'] as String).toList(),
@@ -283,5 +574,4 @@ class _GetSimilarImageState extends State<GetSimilarImage> {
       print('Error fetching question directions: $e');
     }
   }
-
 }

@@ -124,14 +124,15 @@ class AiService {
     难度等级：${image.difficulty}(${ImageState.getDifficulty(image.difficulty ?? 0)});
     ${getPromptRule(image,questionDifficulty: questionDifficulty)};
     
-    问题参考样例：
-    ${category.example};
+
     
     【输出格式要求】：
     $formatRule
     (correct_answer是正确答案位置索引);
 ''';
   }
+  //    问题参考样例：
+    //${category.example};
 
   static String getPromptRule(ImageModel image, {int questionDifficulty = 0}) {
     switch (image.category) {
