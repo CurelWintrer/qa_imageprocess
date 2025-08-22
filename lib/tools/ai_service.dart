@@ -50,7 +50,10 @@ class AiService {
     }
   }
 
-  static Future<QaResponse?> getQA(ImageModel image) async {
+  static Future<QaResponse?> getQA(
+    ImageModel image, {
+    int questionDifficulty = 0,
+  }) async {
     try {
       // 1. 发送请求
       final response = await http.post(
@@ -104,33 +107,93 @@ class AiService {
     }
   }
 
-  static String getPrompt(List<CategoryModel> categorys, ImageModel image) {
+  static String getPrompt(
+    List<CategoryModel> categorys,
+    ImageModel image, {
+    int questionDifficulty = 0,
+  }) {
     // print(image.category);
     CategoryModel? category = categorys.firstWhere(
       (item) => item.categoryName == image.category,
     );
     print(category.categoryName);
-    return '''请仔细观察这张图片，基于图片内容生成一个${category.categoryName}类问题。
+    return '''请仔细观察这张图片，基于图片内容生成一个${category.categoryName}类问题。${category.prompt}
     问题必须符合以下要求：
     ${category.difficulties[image.difficulty ?? 0]};
-    提问主体：${image.collectorType};
-    问题方向：${image.questionDirection};
-    难度等级：${image.difficulty}(${ImageState.getDifficulty(image.difficulty ?? 0)})
+    当前图片提问方向：${image.collectorType}的${image.questionDirection};
+    难度等级：${image.difficulty}(${ImageState.getDifficulty(image.difficulty ?? 0)});
+    ${getPromptRule(image,questionDifficulty: questionDifficulty)};
+    
     问题参考样例：
-    ${category.example}
-    【重要要求】：
-    $rule;
+    ${category.example};
+    
     【输出格式要求】：
     $formatRule
     (correct_answer是正确答案位置索引);
 ''';
   }
 
-  static Future<String> _getRequestBody(ImageModel image) async {
+  static String getPromptRule(ImageModel image, {int questionDifficulty = 0}) {
+    switch (image.category) {
+      case 'single_instance_reasoning（单实例推理）':
+        switch (questionDifficulty) {
+          case 0:
+            return '''
+            画面主体是${image.category},你要对画面主体的${image.questionDirection}结合相关的外部知识进行提问，满足基础的推理性问题;
+          ''';
+          case 1:
+          return '''
+            画面主体是${image.category},你要对画面主体的${image.questionDirection}结合相关的外部知识进行提问，满足较复杂的推理性问题;
+          ''';
+          default:
+          return '';
+        }
+
+      case 'common reasoning（常识推理）'||'statistical reasoning（统计推理）'||'diagram reasoning（图表推理）':
+        switch (questionDifficulty){
+          case 0:
+          return '''
+            需要结合外部知识进行推理；
+            对画面的${image.questionDirection}结合相关${image.collectorType}外部知识进行提问，满足单步的推理。
+            ''';
+          case 1:
+          return '''
+            需要结合外部知识进行推理；
+            对画面的${image.questionDirection}结合相关${image.collectorType}外部知识进行提问，满足多部的推理。
+            ''';
+          default:
+          return '';
+        }
+      case 'geography_earth_agri（地理&地球科学&农业）':
+        switch (questionDifficulty){
+          case 0:
+          return '''
+            对画面的${image.questionDirection}结合相关初中知识知识进行提问。
+            ''';
+          case 1:
+          return '''
+            对画面的${image.questionDirection}结合高中知识进行提问。
+            ''';
+          default:
+          return '';
+        }
+      default:
+        return '';
+    }
+  }
+
+  static Future<String> _getRequestBody(
+    ImageModel image, {
+    int questionDifficulty = 0,
+  }) async {
     String imageBase64 = await downloadImageAndConvertToBase64(
       '${UserSession().baseUrl}/${image.path}',
     );
-    String prompt = getPrompt(categorys, image);
+    String prompt = getPrompt(
+      categorys,
+      image,
+      questionDifficulty: questionDifficulty,
+    );
     print('提示词：$prompt');
     final requestBody = {
       'model': UserSession().modelName,

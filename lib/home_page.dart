@@ -2,11 +2,9 @@
 import 'package:flutter/material.dart';
 import 'package:qa_imageprocess/navi/app_navigation_drawer.dart';
 import 'package:qa_imageprocess/pages/allimage.dart';
-import 'package:qa_imageprocess/pages/export.dart';
 import 'package:qa_imageprocess/pages/get_repeated_image.dart';
 import 'package:qa_imageprocess/pages/management_page.dart';
 import 'package:qa_imageprocess/pages/review_list.dart';
-import 'package:qa_imageprocess/pages/work.dart';
 import 'package:qa_imageprocess/pages/work_list.dart';
 import 'package:qa_imageprocess/pages/work_manager.dart';
 import 'package:qa_imageprocess/user_session.dart';
@@ -116,7 +114,6 @@ class _HomePageState extends State<HomePage>
       basePages.add({'title': '账号管理', 'page': ManagementPage(key: _pageKeys[3])});
       basePages.add({'title':'任务管理','page':WorkManager(key: _pageKeys[4])});
       basePages.add({'title':'总览','page':Allimage(key: _pageKeys[5],)});
-
     }
 
     // 更新页面和标题列表

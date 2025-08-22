@@ -36,6 +36,10 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
   Set<int> _selectedImageIDs = {}; // 存储选中的图片ID
   bool _isInSelectionMode = false; // 是否处于多选模式
 
+  //难度选择状态
+  int? _selectedDifficulty;
+  final Map<int, String> difficultyOptions = {0: "简单", 1: "中等", 2: "困难"};
+
   @override
   void initState() {
     super.initState();
@@ -283,6 +287,19 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
       appBar: AppBar(
         title: Text('Work #${widget.workID}'),
         actions: [
+          _buildIntLevelDropdown(
+            // 使用新的整数版本组件
+            value: _selectedDifficulty,
+            options: difficultyOptions.keys.toList(),
+            hint: '难度',
+            displayValues: difficultyOptions,
+            onChanged: (newValue) {
+              setState(() {
+                _selectedDifficulty = newValue;
+              });
+            },
+          ),
+          SizedBox(width: 20),
           IconButton(
             onPressed: () => {_openReturnReasonAndRemark()},
             icon: Icon(Icons.tips_and_updates),
@@ -324,6 +341,48 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
         onPressed: _toggleColumnCount,
         tooltip: '切换列数 ($_columnCount)',
         child: Text('$_columnCount列'),
+      ),
+    );
+  }
+
+  // int 类型的下拉框
+  Widget _buildIntLevelDropdown({
+    required int? value,
+    required List<int> options,
+    required String hint,
+    required Map<int, String> displayValues,
+    bool enabled = true,
+    ValueChanged<int?>? onChanged,
+  }) {
+    // 构建菜单项
+    final items = [
+      DropdownMenuItem<int?>(
+        value: null,
+        child: Text('未选择', style: TextStyle(color: Colors.grey)),
+      ),
+      ...options.map((id) {
+        return DropdownMenuItem<int?>(
+          value: id,
+          child: Text(
+            displayValues[id] ?? '未知',
+            overflow: TextOverflow.ellipsis,
+          ),
+        );
+      }).toList(),
+    ];
+
+    return SizedBox(
+      width: 180,
+      child: DropdownButtonFormField<int?>(
+        value: value,
+        isExpanded: true,
+        decoration: InputDecoration(
+          labelText: hint,
+          border: const OutlineInputBorder(),
+          enabled: enabled,
+        ),
+        items: items,
+        onChanged: enabled ? onChanged : null,
       ),
     );
   }
@@ -400,7 +459,7 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
     }
     try {
       // 1. 调用AI服务
-      final qa = await AiService.getQA(image);
+      final qa = await AiService.getQA(image, questionDifficulty: _selectedDifficulty??0);
       if (qa == null) throw Exception('AI服务返回空数据');
 
       debugPrint('AI生成结果: ${qa.toString()}');

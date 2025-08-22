@@ -576,7 +576,7 @@ class _AllimageState extends State<Allimage> {
     );
   }
 
-  // 专门处理 int 类型的下拉框
+  // int 类型的下拉框
   Widget _buildIntLevelDropdown({
     required int? value,
     required List<int> options,
