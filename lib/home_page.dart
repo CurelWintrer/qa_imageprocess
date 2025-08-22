@@ -116,7 +116,6 @@ class _HomePageState extends State<HomePage>
       basePages.add({'title': '账号管理', 'page': ManagementPage(key: _pageKeys[3])});
       basePages.add({'title':'任务管理','page':WorkManager(key: _pageKeys[4])});
       basePages.add({'title':'总览','page':Allimage(key: _pageKeys[5],)});
-      basePages.add({'title':'导出','page':Export(key: _pageKeys[6],)});
 
     }
 
