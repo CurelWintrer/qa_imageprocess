@@ -123,13 +123,10 @@ class AiService {
     当前图片提问方向：${image.collectorType}的${image.questionDirection};
     难度等级：${image.difficulty}(${ImageState.getDifficulty(image.difficulty ?? 0)});
     ${getPromptRule(image,questionDifficulty: questionDifficulty)};
-    
-
-    
     【输出格式要求】：
     $formatRule
     (correct_answer是正确答案位置索引);
-''';
+    ''';
   }
   //    问题参考样例：
     //${category.example};
