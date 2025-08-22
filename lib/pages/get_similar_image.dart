@@ -168,12 +168,8 @@ class _GetSimilarImageState extends State<GetSimilarImage> {
 
       // 3. 获取重复图片信息
       for (var group in duplicateGroups) {
-        final images = await _fetchImagesByName(group);
-        if (images.isNotEmpty) {
-          setState(() {
-            _similarImageGroups.add(images);
-          });
-        }
+        await _fetchImagesByName(group);
+
       }
     } catch (e) {
       ScaffoldMessenger.of(
@@ -385,8 +381,8 @@ class _GetSimilarImageState extends State<GetSimilarImage> {
   }
 
   //根据文件名和类目查询图片
-  Future<List<ImageModel>> _fetchImagesByName(List<String> imageNames) async {
-    if (imageNames.isEmpty) return [];
+  Future<void> _fetchImagesByName(List<String> imageNames) async {
+    if (imageNames.isEmpty) return;
 
     String categoryName = '';
     if (_selectedCategoryId != null) {
@@ -413,11 +409,12 @@ class _GetSimilarImageState extends State<GetSimilarImage> {
         final data = jsonDecode(response.body)['data'];
         final imageData = data['data'] as List;
         setState(() {
-          _similarImageGroups.add(
-            imageData.map((img) => ImageModel.fromJson(img)).toList(),
-          );
+          if (imageData.isNotEmpty) {
+            _similarImageGroups.add(
+              imageData.map((img) => ImageModel.fromJson(img)).toList(),
+            );
+          }
         });
-        return imageData.map((img) => ImageModel.fromJson(img)).toList();
       } else {
         throw Exception('HTTP ${response.statusCode}');
       }
