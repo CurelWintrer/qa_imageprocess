@@ -506,12 +506,7 @@ class _ReviewState extends State<Review> {
                   const SizedBox(height: 20),
                   
                   // 问题和答案部分
-                  if (selectedImage.questions != null && selectedImage.questions!.isNotEmpty) ...[                    
-                    const Text(
-                      '问题与答案',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 10),
+                  if (selectedImage.questions != null && selectedImage.questions!.isNotEmpty) ...[
                     _buildQuestionAnswerSection(selectedImage.questions!.first),
                   ] else ...[
                     const Center(
@@ -537,57 +532,62 @@ class _ReviewState extends State<Review> {
   Widget _buildImageInfoSection(ImageModel image) {
     return Card(
       elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              '图片信息',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      clipBehavior: Clip.antiAlias, // 添加裁剪以确保图片不会溢出卡片边界
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 图片预览 - 占据卡片的整个宽度和大部分高度
+          Container(
+            width: double.infinity,
+            constraints: const BoxConstraints(minHeight: 400),
+            child: Image.network(
+              '${UserSession().baseUrl}/${image.path}',
+              fit: BoxFit.contain, // 保持图片比例并尽可能填充容器
+              // headers: {
+              //   'Authorization': 'Bearer ${UserSession().token}',
+              // },
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return Center(
+                  child: CircularProgressIndicator(
+                    value: loadingProgress.expectedTotalBytes != null
+                        ? loadingProgress.cumulativeBytesLoaded /
+                            loadingProgress.expectedTotalBytes!
+                        : null,
+                  ),
+                );
+              },
+              errorBuilder: (context, error, stackTrace) {
+                return const Center(
+                  child: Icon(Icons.broken_image, size: 100, color: Colors.grey),
+                );
+              },
             ),
-            const SizedBox(height: 10),
-            // 图片预览
-            Center(
-              child: Container(
-                constraints: const BoxConstraints(maxHeight: 300),
-                child: Image.network(
-                  '${UserSession().baseUrl}/${image.path}',
-                  headers: {
-                    'Authorization': 'Bearer ${UserSession().token}',
-                  },
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return Center(
-                      child: CircularProgressIndicator(
-                        value: loadingProgress.expectedTotalBytes != null
-                            ? loadingProgress.cumulativeBytesLoaded /
-                                loadingProgress.expectedTotalBytes!
-                            : null,
-                      ),
-                    );
-                  },
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Center(
-                      child: Icon(Icons.broken_image, size: 100, color: Colors.grey),
-                    );
-                  },
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            // 图片元数据
-            Wrap(
-              spacing: 16,
-              runSpacing: 8,
+          ),
+          // 图片信息部分 - 在图片下方显示
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildInfoItem('状态', ImageState.getStateText(image.state)),
-                _buildInfoItem('难度', image.difficulty != null ? '${image.difficulty}' : '未设置'),
-
+                const Text(
+                  '图片信息',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 10),
+                // 图片元数据
+                Wrap(
+                  spacing: 16,
+                  runSpacing: 8,
+                  children: [
+                    _buildInfoItem('状态', ImageState.getStateText(image.state)),
+                    _buildInfoItem('难度', image.difficulty != null ? '${ImageState.getDifficulty(image.difficulty??-1)}' : '未设置'),
+                  ],
+                ),
               ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

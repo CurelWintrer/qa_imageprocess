@@ -289,7 +289,7 @@ class _HomePageState extends State<HomePage>
             pageTitles: _pageTitles,
             selectedIndex: _selectedIndex,
             onItemSelected: (index) => setState(() => _selectedIndex = index),
-            onToggleUserMenu: _toggleUserMenu,
+            onToggleUserMenu: ()=>{},
             onToggleSettings: _toggleSettings,
             onLogout: logout,
             getIconForIndex: _getIconForIndex,
