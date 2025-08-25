@@ -16,10 +16,13 @@ import 'package:qa_imageprocess/user_session.dart';
 class ExportService {
   final BuildContext context;
   final String category;
+  bool is_opinion = true;
+  bool is_answer = true;
+  bool is_COT = true;
   ValueNotifier<double> progress = ValueNotifier<double>(0.0);
   ValueNotifier<String> status = ValueNotifier<String>('准备导出');
 
-  ExportService({required this.context, required this.category});
+  ExportService({required this.context, required this.category,this.is_opinion=true,this.is_answer=true,this.is_COT=true});
 
   // 获取所有图片（分页）
   Future<List<ImageModel>> _fetchAllImages() async {
@@ -240,43 +243,43 @@ class ExportService {
 
   // 构建配置文件条目
   // 修改_buildConfigItem方法中的路径拼接
-Map<String, dynamic> _buildConfigItem(
-  ImageModel image,
-  QuestionModel question,
-  String imagePath,
-) {
-  // 将路径中的反斜杠替换为正斜杠
-  imagePath = imagePath.replaceAll('\\', '/');
+  Map<String, dynamic> _buildConfigItem(
+    ImageModel image,
+    QuestionModel question,
+    String imagePath,
+  ) {
+    // 将路径中的反斜杠替换为正斜杠
+    imagePath = imagePath.replaceAll('\\', '/');
 
-  // 生成选项文本 (A, B, C...)
-  String optionsText = '';
-  if (question.answers != null && question.answers!.isNotEmpty) {
-    for (int i = 0; i < question.answers!.length; i++) {
-      final letter = String.fromCharCode(65 + i); // A, B, C...
-      optionsText += '$letter.${question.answers![i].answerText}\n';
+    // 生成选项文本 (A, B, C...)
+    String optionsText = '';
+    if (question.answers != null && question.answers!.isNotEmpty) {
+      for (int i = 0; i < question.answers!.length; i++) {
+        final letter = String.fromCharCode(65 + i); // A, B, C...
+        optionsText += '$letter.${question.answers![i].answerText}\n';
+      }
+      optionsText = optionsText.trim();
     }
-    optionsText = optionsText.trim();
-  }
 
-  return {
-    "image": imagePath, // 使用统一的正斜杠路径
-    "text_md5": image.fileName!.replaceAll(
-      path.extension(image.fileName!),
-      '',
-    ),
-    "text_imge_domain": image.category,
-    "text_imge_type": image.collectorType,
-    "text_QA_diff": ImageState.getDifficulty(image.difficulty ?? -1),
-    "text_QA_direction": image.questionDirection,
-    "text_question": question.questionText,
-    // "text_opinion": optionsText,
-    // "text_answer": question.rightAnswer?.answerText ?? '',
-    // "text_COT": question.textCOT ?? '',
-    "text_opinion": '',
-    "text_answer": '',
-    "text_COT": '',
-  };
-}
+    return {
+      "image": imagePath, // 使用统一的正斜杠路径
+      "text_md5": image.fileName!.replaceAll(
+        path.extension(image.fileName!),
+        '',
+      ),
+      "text_imge_domain": image.category,
+      "text_imge_type": image.collectorType,
+      "text_QA_diff": ImageState.getDifficulty(image.difficulty ?? -1),
+      "text_QA_direction": image.questionDirection,
+      "text_question": question.questionText,
+      // "text_opinion": optionsText,
+      // "text_answer": question.rightAnswer?.answerText ?? '',
+      // "text_COT": question.textCOT ?? '',
+      "text_opinion": is_opinion ? optionsText : '',
+      "text_answer": is_answer ? question.rightAnswer?.answerText ?? '':'',
+      "text_COT": is_COT ? question.textCOT :'',
+    };
+  }
 
   // 辅助函数：按属性分组
   Map<K, List<T>> groupBy<T, K>(Iterable<T> values, K Function(T) keyFunction) {

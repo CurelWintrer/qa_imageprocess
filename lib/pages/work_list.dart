@@ -245,9 +245,9 @@ class _WorkListState extends State<WorkList> {
       );
     }
 
-    if (_works.isEmpty && !_isLoading) {
-      return const Center(child: Text('暂无工作数据'));
-    }
+    // if (_works.isEmpty && !_isLoading) {
+    //   return const Center(child: Text('暂无工作数据'));
+    // }
 
     return Column(
       children: [

@@ -358,19 +358,7 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
     );
   }
 
-  // Future<void> _addImages(int workID)async{
-  //   try{
-  //     final response=await http.post(Uri.parse('${UserSession().baseUrl}/api/image/work'),
-  //     headers: {
-  //     'Authorization': 'Bearer ${UserSession().token}',
-  //     'Content-Type': 'application/json',
-  //   },
-  //   body: ''
-  //   );
-  //   }catch(e){
-  //     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('上传失败$e')));
-  //   }
-  // }
+
   Future<void> _addImages(int workID) async {
     try {
       // 打开Windows文件选择器，选择多个图片文件
@@ -620,15 +608,25 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
   }
 
   // 网格项组件
-  Widget _buildGridItem(ImageModel image) {
+   Widget _buildGridItem(ImageModel image) {
     final firstQuestion = image.questions?.isNotEmpty == true
         ? image.questions?.first
         : null;
-    // 检查当前图片是否正在处理中
     final bool isProcessing = _processingImageIDs.contains(image.imageID);
     final bool isSelected = _selectedImageIDs.contains(image.imageID);
+    
     return Container(
       key: ValueKey(image.imageID),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: GestureDetector(
         onLongPress: () => {
           setState(() {
@@ -656,42 +654,48 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
                     children: [
                       // 图片显示
                       image.path?.isNotEmpty == true
-                          ? CachedNetworkImage(
-                              imageUrl:
-                                  '${UserSession().baseUrl}/${image.path}',
-                              fit: BoxFit.cover,
-                              placeholder: (context, url) => Container(
-                                color: Colors.grey[200],
-                                child: const Center(
-                                  child: CircularProgressIndicator(),
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: CachedNetworkImage(
+                                imageUrl: '${UserSession().baseUrl}/${image.path}',
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) => Container(
+                                  color: Colors.grey[200],
+                                  child: const Center(
+                                    child: CircularProgressIndicator(),
+                                  ),
                                 ),
-                              ),
-                              errorWidget: (context, url, error) => Container(
-                                color: Colors.grey[200],
-                                child: const Center(child: Icon(Icons.error)),
+                                errorWidget: (context, url, error) => Container(
+                                  color: Colors.grey[200],
+                                  child: const Center(child: Icon(Icons.error)),
+                                ),
                               ),
                             )
                           : Container(
-                              color: Colors.grey[200],
+                              decoration: BoxDecoration(
+                                color: Colors.grey[200],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
                               child: const Center(
                                 child: Icon(Icons.image_not_supported),
                               ),
                             ),
 
-                      // 图片状态标签（悬浮在右上角）
+                      // 图片状态标签（悬浮在左上角）
                       Positioned(
                         top: 8,
-                        right: 8,
+                        left: 8,
                         child: _buildImageStatusBadge(image.state),
                       ),
                     ],
                   ),
                 ),
+                const SizedBox(height: 8),
                 Row(
                   children: [
                     // 图片信息
                     Padding(
-                      padding: const EdgeInsets.only(left: 10),
+                      padding: const EdgeInsets.only(left: 8),
                       child: Text(
                         '#${image.imageID}',
                         style: const TextStyle(
@@ -700,13 +704,13 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
                         ),
                       ),
                     ),
-                    Spacer(),
-                    //快捷AI更新QA按钮
+                    const Spacer(),
+                    // 快捷AI更新QA按钮
                     Padding(
-                      padding: const EdgeInsets.only(right: 10),
+                      padding: const EdgeInsets.only(right: 8),
                       child: IconButton(
                         onPressed: () => {_executeAITask(image)},
-                        icon: Icon(Icons.auto_awesome),
+                        icon: const Icon(Icons.auto_awesome),
                         iconSize: 20,
                         tooltip: 'AI-QA',
                       ),
@@ -738,28 +742,40 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
                     ),
                   ),
                 ],
-                // 多选框（只有在多选模式显示）
-                if (_isInSelectionMode)
-                  Positioned(
-                    top: 8,
-                    left: 8,
-                    child: Checkbox(
-                      value: isSelected,
-                      onChanged: (value) => setState(() {
-                        _toggleImageSelection(image.imageID);
-                      }),
-                    ),
-                  ),
               ],
             ),
+            
+            // 多选框（悬浮在右上角）
+            if (_isInSelectionMode)
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Checkbox(
+                    value: isSelected,
+                    onChanged: (value) => setState(() {
+                      _toggleImageSelection(image.imageID);
+                    }),
+                  ),
+                ),
+              ),
+            
+            // 处理中遮罩
             if (isProcessing)
               Positioned.fill(
-                child: Container(
-                  color: Colors.black54,
-                  child: Center(
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 3.0,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    color: Colors.black54,
+                    child: const Center(
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 3.0,
+                      ),
                     ),
                   ),
                 ),

@@ -50,6 +50,10 @@ class _AllimageState extends State<Allimage> {
   late ExportService exportService;
   bool isExporting = false;
 
+  bool is_opinion = true;
+  bool is_answer = true;
+  bool is_COT = true;
+
   @override
   void initState() {
     // TODO: implement initState
@@ -57,7 +61,6 @@ class _AllimageState extends State<Allimage> {
     _fetchCategories(); // 初始化时获取类目
     // 添加滚动监听
     _scrollController.addListener(_scrollListener);
-    
   }
 
   @override
@@ -100,36 +103,36 @@ class _AllimageState extends State<Allimage> {
           _buildTitleSelector(),
           // 添加网格视图展示图片
           if (isExporting) ...[
-              ValueListenableBuilder<double>(
-                valueListenable: exportService.progress,
-                builder: (context, progress, _) {
-                  return LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 12,
-                    backgroundColor: Colors.grey[300],
-                  );
-                },
-              ),
-              const SizedBox(height: 20),
-              ValueListenableBuilder<String>(
-                valueListenable: exportService.status,
-                builder: (context, status, _) {
-                  return Text(
-                    status,
-                    style: const TextStyle(fontSize: 16),
-                    textAlign: TextAlign.center,
-                  );
-                },
-              ),
-              const SizedBox(height: 30),
-              OutlinedButton(
-                onPressed: () {
-                  setState(() => isExporting = false);
-                  Navigator.pop(context);
-                },
-                child: const Text('取消导出'),
-              )
-            ],
+            ValueListenableBuilder<double>(
+              valueListenable: exportService.progress,
+              builder: (context, progress, _) {
+                return LinearProgressIndicator(
+                  value: progress,
+                  minHeight: 12,
+                  backgroundColor: Colors.grey[300],
+                );
+              },
+            ),
+            const SizedBox(height: 20),
+            ValueListenableBuilder<String>(
+              valueListenable: exportService.status,
+              builder: (context, status, _) {
+                return Text(
+                  status,
+                  style: const TextStyle(fontSize: 16),
+                  textAlign: TextAlign.center,
+                );
+              },
+            ),
+            const SizedBox(height: 30),
+            OutlinedButton(
+              onPressed: () {
+                setState(() => isExporting = false);
+                Navigator.pop(context);
+              },
+              child: const Text('取消导出'),
+            ),
+          ],
           Expanded(
             child: _images.isEmpty && !_isLoading
                 ? Center(
@@ -220,7 +223,7 @@ class _AllimageState extends State<Allimage> {
       );
       queryParams['question_direction'] = questionDirection['name'];
     }
-    if(_selectedDifficulty!=null){
+    if (_selectedDifficulty != null) {
       queryParams['difficulty'] = _selectedDifficulty.toString();
     }
 
@@ -269,6 +272,83 @@ class _AllimageState extends State<Allimage> {
     }
   }
 
+  // Widget _buildTitleSelector() {
+  //   return Container(
+  //     padding: const EdgeInsets.all(16.0),
+  //     decoration: BoxDecoration(
+  //       color: Colors.white,
+  //       boxShadow: [
+  //         BoxShadow(
+  //           color: Colors.grey.withOpacity(0.1),
+  //           spreadRadius: 1,
+  //           blurRadius: 3,
+  //           offset: const Offset(0, 2),
+  //         ),
+  //       ],
+  //     ),
+  //     child: LayoutBuilder(
+  //       builder: (context, constraints) {
+  //         final isWideScreen = constraints.maxWidth > 800;
+
+  //         final children = [
+  //           _buildCategoryDropdown(),
+  //           _buildCollectorTypeDropdown(),
+  //           _buildQuestionDirectionDropdown(),
+  //           _buildDifficultyDropdown(),
+
+  //           SizedBox(
+  //             width: 60,
+  //             height: 50,
+  //             child: ElevatedButton(
+  //               onPressed: () => {_handleSearch()},
+  //               style: ElevatedButton.styleFrom(
+  //                 backgroundColor: Colors.blue,
+  //                 foregroundColor: Colors.white,
+  //                 shape: RoundedRectangleBorder(
+  //                   borderRadius: BorderRadius.circular(8),
+  //                 ),
+  //               ),
+  //               child: const Text('查询', style: TextStyle(fontSize: 16)),
+  //             ),
+  //           ),
+  //           SizedBox(
+  //             width: 60,
+  //             height: 50,
+  //             child: ElevatedButton(
+  //               onPressed: () => {_startExport()},
+  //               style: ElevatedButton.styleFrom(
+  //                 backgroundColor: Colors.orange,
+  //                 foregroundColor: Colors.white,
+  //                 shape: RoundedRectangleBorder(
+  //                   borderRadius: BorderRadius.circular(8),
+  //                 ),
+  //               ),
+  //               child: const Text('导出', style: TextStyle(fontSize: 16)),
+  //             ),
+  //           ),
+  //         ];
+
+  //         if (isWideScreen) {
+  //           return Row(
+  //             children: children
+  //                 .map(
+  //                   (child) => Expanded(
+  //                     flex: 1,
+  //                     child: Padding(
+  //                       padding: const EdgeInsets.symmetric(horizontal: 8.0),
+  //                       child: child,
+  //                     ),
+  //                   ),
+  //                 )
+  //                 .toList(),
+  //           );
+  //         } else {
+  //           return Wrap(spacing: 16, runSpacing: 16, children: children);
+  //         }
+  //       },
+  //     ),
+  //   );
+  // }
   Widget _buildTitleSelector() {
     return Container(
       padding: const EdgeInsets.all(16.0),
@@ -287,13 +367,30 @@ class _AllimageState extends State<Allimage> {
         builder: (context, constraints) {
           final isWideScreen = constraints.maxWidth > 800;
 
+          // 添加复选框部分
+          final checkboxSection = Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildCheckbox('意见', is_opinion, (value) {
+                setState(() => is_opinion = value!);
+              }),
+              _buildCheckbox('答案', is_answer, (value) {
+                setState(() => is_answer = value!);
+              }),
+              _buildCheckbox('COT', is_COT, (value) {
+                setState(() => is_COT = value!);
+              }),
+            ],
+          );
+
           final children = [
             _buildCategoryDropdown(),
             _buildCollectorTypeDropdown(),
             _buildQuestionDirectionDropdown(),
             _buildDifficultyDropdown(),
+            // if (isWideScreen) checkboxSection, // 宽屏时复选框在同一行
             SizedBox(
-              width: 60,
+              width: 100,
               height: 50,
               child: ElevatedButton(
                 onPressed: () => {_handleSearch()},
@@ -308,7 +405,7 @@ class _AllimageState extends State<Allimage> {
               ),
             ),
             SizedBox(
-              width: 60,
+              width: 100,
               height: 50,
               child: ElevatedButton(
                 onPressed: () => {_startExport()},
@@ -324,30 +421,52 @@ class _AllimageState extends State<Allimage> {
             ),
           ];
 
-          if (isWideScreen) {
-            return Row(
-              children: children
-                  .map(
-                    (child) => Expanded(
-                      flex: 1,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                        child: child,
-                      ),
-                    ),
-                  )
-                  .toList(),
+          // if (isWideScreen) {
+          //   return Row(
+          //     children: children
+          //         .map(
+          //           (child) => Expanded(
+          //             flex: 1,
+          //             child: Padding(
+          //               padding: const EdgeInsets.symmetric(horizontal: 8.0),
+          //               child: child,
+          //             ),
+          //           ),
+          //         )
+          //         .toList(),
+          //   );
+          //} else {
+            // 窄屏时复选框单独一行
+            return Column(
+              children: [
+                Row(children: [Expanded(child: checkboxSection)]),
+                const SizedBox(height: 16),
+                Wrap(spacing: 16, runSpacing: 16, children: children),
+              ],
             );
-          } else {
-            return Wrap(spacing: 16, runSpacing: 16, children: children);
-          }
+          //}
         },
       ),
     );
   }
 
+  Widget _buildCheckbox(
+    String label,
+    bool value,
+    ValueChanged<bool?> onChanged,
+  ) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Checkbox(value: value, onChanged: onChanged),
+        Text(label, style: const TextStyle(fontSize: 14)),
+        const SizedBox(width: 8),
+      ],
+    );
+  }
+
   void _startExport() async {
-    var ExportCategory='';
+    var ExportCategory = '';
     if (_selectedCategoryId != null) {
       final category = _categories.firstWhere(
         (c) => c['id'] == _selectedCategoryId,
@@ -355,19 +474,27 @@ class _AllimageState extends State<Allimage> {
       );
       ExportCategory = category['name'];
     }
-    exportService=ExportService(context: context, category: ExportCategory);
+
+    // 使用复选框的值作为参数
+    exportService = ExportService(
+      context: context,
+      category: ExportCategory,
+      is_opinion: is_opinion,
+      is_answer: is_answer,
+      is_COT: is_COT,
+    );
+
     setState(() => isExporting = true);
-    
+
     try {
       await exportService.exportImages();
-      // 成功后可选：显示成功消息
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('图片导出成功!')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('图片导出成功!')));
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('导出失败: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('导出失败: $e')));
     } finally {
       setState(() => isExporting = false);
     }
