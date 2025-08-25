@@ -120,7 +120,7 @@ class _LoginPageState extends State<LoginPage>
       } else if (response.statusCode == 422) {
         _showMessage('参数验证失败，请检查输入');
       } else {
-        _showMessage('服务器内部错误 (${response.statusCode})');
+        _showMessage('服务器内部错误 (${response.body})');
       }
     } catch (e) {
       setState(() {
