@@ -121,7 +121,7 @@ class _DeveloperState extends State<Developer> {
       request.fields['releaseLog'] = releaseLog;
       
       var response = await request.send();
-      
+      // print(response);
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context as BuildContext).showSnackBar(
           const SnackBar(content: Text('上传成功')),

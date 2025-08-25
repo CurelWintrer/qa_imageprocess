@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:qa_imageprocess/tools/updateCheck.dart';
 
 class AppNavigationDrawer extends StatelessWidget {
   final Map<String, dynamic> userInfo;
@@ -92,7 +93,7 @@ class AppNavigationDrawer extends StatelessWidget {
 
   Widget _buildMenuItem(BuildContext context, int index) {
     return InkWell(
-      onTap: () => onItemSelected(index),
+      onTap: () async => {onItemSelected(index),await UpdateChecker.checkForUpdate(context)},
       splashColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
       highlightColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
       borderRadius: BorderRadius.circular(8),

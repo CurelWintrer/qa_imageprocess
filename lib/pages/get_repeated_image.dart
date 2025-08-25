@@ -87,7 +87,7 @@ class _GetRepeatedImageState extends State<GetRepeatedImage> {
         },
       );
 
-      print(response.body);
+      // print(response.body);
 
       if (response.statusCode == 200) {
         final responseData = jsonDecode(response.body);

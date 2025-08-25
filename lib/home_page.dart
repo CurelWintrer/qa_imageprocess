@@ -7,6 +7,7 @@ import 'package:qa_imageprocess/pages/management_page.dart';
 import 'package:qa_imageprocess/pages/review_list.dart';
 import 'package:qa_imageprocess/pages/work_list.dart';
 import 'package:qa_imageprocess/pages/work_manager.dart';
+import 'package:qa_imageprocess/tools/updateCheck.dart';
 import 'package:qa_imageprocess/user_session.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
@@ -60,6 +61,7 @@ class _HomePageState extends State<HomePage>
     _pageTitles=[];
     _pages=[];
     _initializeUserInfo();
+    UpdateChecker.checkForUpdate(context);
   }
 
   // 初始化用户信息

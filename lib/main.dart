@@ -11,7 +11,9 @@ import 'package:qa_imageprocess/pages/system_set.dart';
 import 'package:qa_imageprocess/pages/work.dart';
 import 'package:qa_imageprocess/pages/work_arrange.dart';
 import 'package:qa_imageprocess/tools/ai_service.dart';
+import 'package:qa_imageprocess/tools/updateCheck.dart';
 import 'package:qa_imageprocess/user_session.dart';
+import 'package:universal_html/js.dart';
 import 'package:window_manager/window_manager.dart';
 
 void main() async {
@@ -31,11 +33,13 @@ void main() async {
   }
   await UserSession().loadFromPrefs();
   await AiService.initData();
+ 
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
+
 
   // This widget is the root of your application.
   @override

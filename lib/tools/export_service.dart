@@ -12,6 +12,7 @@ import 'package:qa_imageprocess/model/image_model.dart';
 import 'package:qa_imageprocess/model/image_state.dart';
 import 'package:qa_imageprocess/model/question_model.dart';
 import 'package:qa_imageprocess/user_session.dart';
+import 'package:image/image.dart' as img; // 添加image包用于获取图片尺寸
 
 class ExportService {
   final BuildContext context;
@@ -145,8 +146,11 @@ class ExportService {
             // 下载图片
             try {
               status.value = '正在下载: ${image.fileName}';
-              final imageFile = await _downloadImage(image, typeDir.path);
-              if (imageFile == null) continue;
+              final downloadResult = await _downloadImage(image, typeDir.path);
+              if (downloadResult == null) continue;
+
+              final imageFile = downloadResult['file'];
+              final imageSize = downloadResult['size'];
 
               // 生成配置文件数据
               if (image.questions != null && image.questions!.isNotEmpty) {
@@ -160,6 +164,7 @@ class ExportService {
                       collectorType,
                       path.basename(imageFile.path),
                     ),
+                    imageSize: imageSize, // 传递图片尺寸信息
                   ),
                 );
               }
@@ -194,8 +199,8 @@ class ExportService {
     }
   }
 
-  // 下载单个图片
-  Future<File?> _downloadImage(ImageModel image, String savePath) async {
+  // 下载单个图片并获取尺寸信息
+  Future<Map<String, dynamic>?> _downloadImage(ImageModel image, String savePath) async {
     if (image.imageID <= 0) return null;
 
     try {
@@ -234,7 +239,22 @@ class ExportService {
       final file = File(path.join(savePath, validFileName));
       await file.writeAsBytes(response.bodyBytes);
 
-      return file;
+      // 获取图片尺寸信息
+      String imageSize = '';
+      try {
+        final imageData = img.decodeImage(response.bodyBytes);
+        if (imageData != null) {
+          imageSize = '${imageData.width}x${imageData.height}';
+        }
+      } catch (e) {
+        status.value = '获取图片尺寸失败: $e';
+        // 即使获取尺寸失败，仍然继续导出图片
+      }
+
+      return {
+        'file': file,
+        'size': imageSize
+      };
     } catch (e) {
       status.value = '图片下载错误: $e';
       return null;
@@ -246,8 +266,9 @@ class ExportService {
   Map<String, dynamic> _buildConfigItem(
     ImageModel image,
     QuestionModel question,
-    String imagePath,
-  ) {
+    String imagePath, {
+    String imageSize = '' // 添加图片尺寸参数
+  }) {
     // 将路径中的反斜杠替换为正斜杠
     imagePath = imagePath.replaceAll('\\', '/');
 
@@ -267,14 +288,12 @@ class ExportService {
         path.extension(image.fileName!),
         '',
       ),
-      "text_imge_domain": image.category,
-      "text_imge_type": image.collectorType,
+      "text_image_domain": image.category,
+      "text_image_type": image.collectorType,
+      "text_image_size": imageSize, // 使用获取到的图片尺寸
       "text_QA_diff": ImageState.getDifficulty(image.difficulty ?? -1),
       "text_QA_direction": image.questionDirection,
       "text_question": question.questionText,
-      // "text_opinion": optionsText,
-      // "text_answer": question.rightAnswer?.answerText ?? '',
-      // "text_COT": question.textCOT ?? '',
       "text_opinion": is_opinion ? optionsText : '',
       "text_answer": is_answer ? question.rightAnswer?.answerText ?? '':'',
       "text_COT": is_COT ? question.textCOT :'',

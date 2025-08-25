@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:qa_imageprocess/UserAccount/register_page.dart';
 import 'package:qa_imageprocess/MyWidget/diffuse_gradient_background.dart';
+import 'package:qa_imageprocess/tools/updateCheck.dart';
 import 'package:qa_imageprocess/user_session.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
@@ -30,6 +31,8 @@ class _LoginPageState extends State<LoginPage>
   bool _obscurePassword = true;
   // bool _isPasswordVisible = false;
 
+
+
   @override
   void initState() {
     super.initState();
@@ -42,6 +45,7 @@ class _LoginPageState extends State<LoginPage>
     );
     _animationController.forward();
     _loadEmail();
+    UpdateChecker.checkForUpdate(context);
   }
 
   void _loadEmail() async {

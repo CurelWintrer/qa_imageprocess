@@ -13,28 +13,29 @@ class UpdateChecker {
   static Future<void> checkForUpdate(BuildContext context) async {
     try {
       final response = await http.get(
-        Uri.parse('${UserSession().baseUrl}/api/releases'),
+        Uri.parse('${UserSession().baseUrl}/api/releases/latest'),
       );
+
+      // print(response.body);
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        final releases = (data['data'] as List)
-            .map((item) => Release.fromJson(item))
-            .toList();
         
-        // 找到最新版本（假设列表按时间顺序排列，最新的是最后一个）
-        if (releases.isNotEmpty) {
-          final latestRelease = releases.last;
+        // 检查API返回的code是否为0（成功）
+        if (data['code'] == 200) {
+          final latestRelease = Release.fromJson(data['data']);
           
           // 比较版本号
           if (_compareVersions(latestRelease.versionNumber, currentVersion) > 0) {
             // 显示更新对话框
             _showUpdateDialog(context, latestRelease);
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('当前已是最新版本')),
-            );
+          }else{
+            print('版本检查正确');
           }
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('检查更新失败: ${data['message']}')),
+          );
         }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -50,16 +51,21 @@ class UpdateChecker {
 
   // 比较版本号
   static int _compareVersions(String v1, String v2) {
-    final v1Parts = v1.split('.').map(int.parse).toList();
-    final v2Parts = v2.split('.').map(int.parse).toList();
-    
-    for (int i = 0; i < v1Parts.length; i++) {
-      if (i >= v2Parts.length) return 1;
-      if (v1Parts[i] > v2Parts[i]) return 1;
-      if (v1Parts[i] < v2Parts[i]) return -1;
+    try {
+      final v1Parts = v1.split('.').map(int.parse).toList();
+      final v2Parts = v2.split('.').map(int.parse).toList();
+      
+      for (int i = 0; i < v1Parts.length; i++) {
+        if (i >= v2Parts.length) return 1;
+        if (v1Parts[i] > v2Parts[i]) return 1;
+        if (v1Parts[i] < v2Parts[i]) return -1;
+      }
+      
+      return v1Parts.length == v2Parts.length ? 0 : -1;
+    } catch (e) {
+      // 如果版本号格式不正确，使用字符串比较
+      return v1.compareTo(v2);
     }
-    
-    return v1Parts.length == v2Parts.length ? 0 : -1;
   }
 
   // 显示更新对话框
@@ -83,12 +89,7 @@ class UpdateChecker {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('稍后再说'),
-            ),
-            TextButton(
               onPressed: () {
-                Navigator.of(context).pop();
                 _downloadAndInstall(context, release);
               },
               child: const Text('下载安装'),
@@ -136,7 +137,7 @@ class UpdateChecker {
       
       // 下载文件
       final response = await http.get(
-        Uri.parse('${UserSession().baseUrl}/api/releases/download/${release.softwareName}'),
+        Uri.parse('${UserSession().baseUrl}/imageQaRelease/${release.softwareName}'),
       );
       
       Navigator.of(context).pop(); // 关闭进度对话框
@@ -148,6 +149,10 @@ class UpdateChecker {
         // 在Windows上运行安装程序
         if (Platform.isWindows) {
           Process.run('cmd', ['/c', 'start', '', filePath]);
+
+          Future.delayed(const Duration(seconds: 1),(){
+            exit(0);
+          });
         } 
         
         ScaffoldMessenger.of(context).showSnackBar(
@@ -166,7 +171,3 @@ class UpdateChecker {
     }
   }
 }
-
-class OpenFile {
-}
-
