@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:qa_imageprocess/UserAccount/login_page.dart';
 import 'package:qa_imageprocess/home_page.dart';
+import 'package:qa_imageprocess/pages/developer.dart';
 import 'package:qa_imageprocess/pages/get_similar_image.dart';
 import 'package:qa_imageprocess/pages/review.dart';
 import 'package:qa_imageprocess/pages/system_set.dart';
@@ -68,6 +69,7 @@ class MyApp extends StatelessWidget {
         },
         '/workArrange': (context) => WorkArrange(),//任务分配
         '/getSimilarImage':(context)=>GetSimilarImage(),
+        '/developer':(context)=>Developer(),
       },
     );
   }

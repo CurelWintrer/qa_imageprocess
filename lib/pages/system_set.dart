@@ -359,6 +359,8 @@ class _SystemSetState extends State<SystemSet> {
                                 '当前版本: ${UserSession().version}',
                                 style: const TextStyle(fontSize: 16),
                               ),
+                              const SizedBox(width: 12),
+                              IconButton(onPressed: ()=>{_showDeveloperDialog()}, icon: Icon(Icons.developer_board),iconSize: 20,)
                             ],
                           ),
                           
@@ -424,6 +426,69 @@ class _SystemSetState extends State<SystemSet> {
       ),
     );
   }
+
+  void _showDeveloperDialog() {
+  final TextEditingController _commandController = TextEditingController();
+  bool _isCommandValid = true;
+
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text('开发者指令'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: _commandController,
+                  decoration: InputDecoration(
+                    labelText: '输入指令',
+                    errorText: _isCommandValid ? null : '指令不正确',
+                    border: const OutlineInputBorder(),
+                  ),
+                  obscureText: true, // 隐藏输入内容
+                  onChanged: (value) {
+                    if (value.isNotEmpty) {
+                      setState(() {
+                        _isCommandValid = true;
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 10),
+
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('取消'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  final command = _commandController.text.trim();
+                  if (command == 'fucklkzh') {
+                    Navigator.pop(context); 
+                    Navigator.pushNamed(context, '/developer');
+                  } else {
+                    setState(() {
+                      _isCommandValid = false;
+                    });
+                  }
+                },
+                child: const Text('确认'),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  ).then((_) {
+    _commandController.dispose(); // 对话框关闭后清理控制器
+  });
+}
 
   Widget _buildTextField({
     required TextEditingController controller,
