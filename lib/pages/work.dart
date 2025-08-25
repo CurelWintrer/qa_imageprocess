@@ -1,9 +1,12 @@
 import 'dart:collection';
+import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:qa_imageprocess/MyWidget/image_detail.dart';
 import 'package:qa_imageprocess/model/image_model.dart';
 import 'package:qa_imageprocess/model/image_state.dart';
@@ -97,6 +100,9 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
             // 新增分页加载，追加图片
             _images.addAll(newImages);
             _hasMore = _currentPage < _totalPages;
+            // if(_currentPage==_totalPages){
+            //   _isLoading=false;
+            // }
           });
         } else {
           throw Exception('API错误: ${data['message']}');
@@ -301,8 +307,15 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
           ),
           SizedBox(width: 20),
           IconButton(
+            onPressed: () => {_addImages(widget.workID)},
+            icon: Icon(Icons.upload),
+            tooltip: '添加图片',
+          ),
+          SizedBox(width: 15),
+          IconButton(
             onPressed: () => {_openReturnReasonAndRemark()},
             icon: Icon(Icons.tips_and_updates),
+            tooltip: '打回信息',
           ),
           SizedBox(width: 20),
           if (_isInSelectionMode) ...[
@@ -343,6 +356,119 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
         child: Text('$_columnCount列'),
       ),
     );
+  }
+
+  // Future<void> _addImages(int workID)async{
+  //   try{
+  //     final response=await http.post(Uri.parse('${UserSession().baseUrl}/api/image/work'),
+  //     headers: {
+  //     'Authorization': 'Bearer ${UserSession().token}',
+  //     'Content-Type': 'application/json',
+  //   },
+  //   body: ''
+  //   );
+  //   }catch(e){
+  //     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('上传失败$e')));
+  //   }
+  // }
+  Future<void> _addImages(int workID) async {
+    try {
+      // 打开Windows文件选择器，选择多个图片文件
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowMultiple: true,
+      );
+
+      if (result == null || result.files.isEmpty) {
+        // 用户取消了选择
+        return;
+      }
+
+      // 获取所有选中的文件
+      List<File> files = result.paths.map((path) => File(path!)).toList();
+
+      // 显示上传进度
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('开始上传 ${files.length} 个文件...')));
+
+      // 循环上传每个文件
+      for (int i = 0; i < files.length; i++) {
+        File file = files[i];
+        String fileName = file.path.split('/').last;
+
+        // 创建多部分请求
+        var request = http.MultipartRequest(
+          'POST',
+          Uri.parse('${UserSession().baseUrl}/api/image/work'),
+        );
+
+        // 添加授权头
+        request.headers['Authorization'] = 'Bearer ${UserSession().token}';
+
+        // 添加workID字段
+        request.fields['workID'] = workID.toString();
+
+        // 添加文件字段
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'file',
+            file.path,
+            filename: fileName,
+            contentType: MediaType('image', fileName.split('.').last),
+          ),
+        );
+
+        // 发送请求
+        var response = await request.send();
+
+        // 检查响应状态
+        if (response.statusCode == 200) {
+          print('文件 $fileName 上传成功');
+          // final data=jsonDecode(response);
+          // setState(() {
+          //   // final index = _images.indexWhere((img) => img.imageID == imageID);
+          //   // if (index != -1) {
+          //   //   _images.removeAt(index); // 通过索引删除元素
+          //   // }
+          // });
+
+          // 更新进度提示
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   SnackBar(
+          //     content: Text('(${i + 1}/${files.length}) $fileName 上传成功'),
+          //   ),
+          // );
+        } else {
+          print('文件 $fileName 上传失败: ${response.statusCode}');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('(${i + 1}/${files.length}) $fileName 上传失败'),
+            ),
+          );
+        }
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('上传成功')));
+      setState(() {
+        _images.clear();
+        _currentPage = 1;
+        _totalPages = 1;
+        _isLoading = false;
+        _fetchWorkDetails();
+      });
+
+      // 所有文件上传完成提示
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('所有文件上传完成')));
+    } catch (e) {
+      print('上传失败: $e');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('上传失败: $e')));
+    }
   }
 
   // int 类型的下拉框
@@ -459,7 +585,10 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
     }
     try {
       // 1. 调用AI服务
-      final qa = await AiService.getQA(image, questionDifficulty: _selectedDifficulty??0);
+      final qa = await AiService.getQA(
+        image,
+        questionDifficulty: _selectedDifficulty ?? 0,
+      );
       if (qa == null) throw Exception('AI服务返回空数据');
 
       debugPrint('AI生成结果: ${qa.toString()}');

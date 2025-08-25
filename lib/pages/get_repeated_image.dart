@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:qa_imageprocess/MyWidget/image_detail.dart';
 import 'package:qa_imageprocess/model/image_model.dart';
 import 'package:http/http.dart' as http;
 import 'package:qa_imageprocess/model/image_state.dart';
@@ -163,6 +164,79 @@ class _GetRepeatedImageState extends State<GetRepeatedImage> {
     );
   }
 
+  // 打开图片详情弹窗
+  void _openImageDetail(ImageModel image) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      useSafeArea: true,
+      builder: (context) {
+        return Dialog(
+          insetPadding: const EdgeInsets.all(20),
+          child: ImageDetail(
+            image: image,
+            onImageUpdated: _handleImageUpdated,
+            onClose: () => Navigator.pop(context),
+            onImageDeleted: _handleImageDeleted,
+          ),
+        );
+      },
+    );
+  }
+
+// 处理图片更新回调
+void _handleImageUpdated(ImageModel updatedImage) {
+  setState(() {
+    // 遍历所有重复分组
+    for (var group in duplicateGroups) {
+      // 在当前分组中查找需要更新的图片
+      final index = group.images.indexWhere((img) => img.imageID == updatedImage.imageID);
+      if (index != -1) {
+        // 更新图片信息
+        group.images[index] = updatedImage;
+        break;
+      }
+    }
+  });
+}
+
+// 处理图片删除回调
+void _handleImageDeleted(int imageID) {
+  setState(() {
+    // 遍历所有重复分组
+    for (var i = 0; i < duplicateGroups.length; i++) {
+      final group = duplicateGroups[i];
+      
+      // 在当前分组中查找需要删除的图片
+      final index = group.images.indexWhere((img) => img.imageID == imageID);
+      if (index != -1) {
+        // 从分组中移除图片
+        group.images.removeAt(index);
+        
+        // 更新分组的计数
+        final updatedGroup = DuplicateGroupModel(
+          fileName: group.fileName,
+          count: group.count - 1,
+          images: group.images,
+        );
+        
+        // 替换原分组
+        duplicateGroups[i] = updatedGroup;
+        
+        // 如果分组中图片数量少于2，移除整个分组（不再构成重复）
+        if (updatedGroup.images.length < 2) {
+          duplicateGroups.removeAt(i);
+        }
+        
+        break;
+      }
+    }
+  });
+  
+  // 关闭图片详情弹窗
+  Navigator.pop(context);
+}
+
   Widget _buildGridItem(ImageModel image) {
     final firstQuestion = image.questions?.isNotEmpty == true
         ? image.questions?.first
@@ -170,7 +244,7 @@ class _GetRepeatedImageState extends State<GetRepeatedImage> {
 
     return GestureDetector(
       onLongPress: () => {},
-      onTap: () {},
+      onTap: () {_openImageDetail(image);},
       child: Stack(
         children: [
           Column(
@@ -492,4 +566,5 @@ class _GetRepeatedImageState extends State<GetRepeatedImage> {
             ),
     );
   }
+
 }

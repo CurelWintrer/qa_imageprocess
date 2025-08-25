@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:qa_imageprocess/MyWidget/image_detail.dart';
 import 'package:qa_imageprocess/model/image_model.dart';
 import 'package:qa_imageprocess/model/image_state.dart';
 import 'package:qa_imageprocess/model/question_model.dart';
@@ -422,6 +423,84 @@ class _GetSimilarImageState extends State<GetSimilarImage> {
       throw Exception('获取图片信息失败: $e');
     }
   }
+    // 处理图片更新回调
+  // 处理图片更新回调
+void _handleImageUpdated(ImageModel updatedImage) {
+  setState(() {
+    // 遍历所有相似图片分组
+    for (var groupIndex = 0; groupIndex < _similarImageGroups.length; groupIndex++) {
+      final group = _similarImageGroups[groupIndex];
+      
+      // 在当前分组中查找需要更新的图片
+      final imageIndex = group.indexWhere((img) => img.imageID == updatedImage.imageID);
+      if (imageIndex != -1) {
+        // 更新图片信息
+        group[imageIndex] = updatedImage;
+        
+        // 更新分组引用
+        _similarImageGroups[groupIndex] = List.from(group);
+        break;
+      }
+    }
+  });
+}
+
+// 处理图片删除回调
+void _handleImageDeleted(int imageID) {
+  setState(() {
+    // 遍历所有相似图片分组
+    for (var groupIndex = 0; groupIndex < _similarImageGroups.length; groupIndex++) {
+      final group = _similarImageGroups[groupIndex];
+      
+      // 在当前分组中查找需要删除的图片
+      final imageIndex = group.indexWhere((img) => img.imageID == imageID);
+      if (imageIndex != -1) {
+        // 从分组中移除图片
+        group.removeAt(imageIndex);
+        
+        // 如果分组中图片数量少于2，移除整个分组（不再构成相似）
+        if (group.length < 2) {
+          _similarImageGroups.removeAt(groupIndex);
+          
+          // 调整当前分组索引
+          if (_currentGroupIndex >= _similarImageGroups.length) {
+            _currentGroupIndex = _similarImageGroups.length > 0 
+              ? _similarImageGroups.length - 1 
+              : 0;
+          }
+        } else {
+          // 更新分组引用
+          _similarImageGroups[groupIndex] = List.from(group);
+        }
+        
+        break;
+      }
+    }
+  });
+  
+  // 关闭图片详情弹窗
+  Navigator.pop(context);
+}
+  // 打开图片详情弹窗
+  void _openImageDetail(ImageModel image) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      useSafeArea: true,
+      builder: (context) {
+        return Dialog(
+          insetPadding: const EdgeInsets.all(20),
+          child: ImageDetail(
+            image: image,
+            onImageUpdated: _handleImageUpdated,
+            onClose: () => Navigator.pop(context),
+            onImageDeleted: _handleImageDeleted,
+          ),
+        );
+      },
+    );
+  }
+
 
   Widget _buildGridItem(ImageModel image) {
     final firstQuestion = image.questions?.isNotEmpty == true
@@ -430,7 +509,7 @@ class _GetSimilarImageState extends State<GetSimilarImage> {
 
     return GestureDetector(
       onLongPress: () => {},
-      onTap: () {},
+      onTap: () {_openImageDetail(image);},
       child: Stack(
         children: [
           Column(
