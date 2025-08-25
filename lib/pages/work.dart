@@ -388,9 +388,9 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
       List<File> files = result.paths.map((path) => File(path!)).toList();
 
       // 显示上传进度
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('开始上传 ${files.length} 个文件...')));
+      // ScaffoldMessenger.of(
+      //   context,
+      // ).showSnackBar(SnackBar(content: Text('开始上传 ${files.length} 个文件...')));
 
       // 循环上传每个文件
       for (int i = 0; i < files.length; i++) {
@@ -422,35 +422,20 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
         // 发送请求
         var response = await request.send();
 
+        String responseBody = await response.stream.bytesToString();
+
         // 检查响应状态
         if (response.statusCode == 200) {
           print('文件 $fileName 上传成功');
-          // final data=jsonDecode(response);
-          // setState(() {
-          //   // final index = _images.indexWhere((img) => img.imageID == imageID);
-          //   // if (index != -1) {
-          //   //   _images.removeAt(index); // 通过索引删除元素
-          //   // }
-          // });
-
-          // 更新进度提示
-          // ScaffoldMessenger.of(context).showSnackBar(
-          //   SnackBar(
-          //     content: Text('(${i + 1}/${files.length}) $fileName 上传成功'),
-          //   ),
-          // );
-        } else {
-          print('文件 $fileName 上传失败: ${response.statusCode}');
+        } else if(response.statusCode==400){
+          print('文件 $fileName 上传失败: ${responseBody}');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('(${i + 1}/${files.length}) $fileName 上传失败'),
+              content: Text('已完成采集，不可上传图片'),
             ),
           );
         }
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('上传成功')));
       setState(() {
         _images.clear();
         _currentPage = 1;
