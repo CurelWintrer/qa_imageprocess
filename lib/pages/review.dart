@@ -379,7 +379,12 @@ class _ReviewState extends State<Review> {
             itemBuilder: (context, index) {
               if (index == _images.length) {
                 // 加载更多指示器
-                _fetchMoreImages();
+                Future.microtask((){
+                  if(_hasMore && _isLoading){
+                    _fetchMoreImages();
+                  }
+                });
+                //_fetchMoreImages();
                 return _buildLoadMoreIndicator();
               }
               

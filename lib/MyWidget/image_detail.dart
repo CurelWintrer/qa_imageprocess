@@ -42,11 +42,36 @@ class _ImageDetailState extends State<ImageDetail> {
   late TextEditingController _explanationController;
   late TextEditingController _textCOTController;
 
+  // 添加分辨率变量
+  int? _imageWidth;
+  int? _imageHeight;
+
   @override
   void initState() {
     super.initState();
     currentImage = widget.image;
     _initEditControllers(); // 初始化控制器
+    // 计算图片分辨率
+    _calculateImageResolution();
+  }
+
+  // 计算图片分辨率的方法
+  void _calculateImageResolution() {
+    final fullImagePath = '${UserSession().baseUrl}/${currentImage.path}';
+
+    // 使用Image.network获取图片尺寸
+    Image.network(fullImagePath).image
+        .resolve(ImageConfiguration.empty)
+        .addListener(
+          ImageStreamListener((ImageInfo info, bool _) {
+            if (mounted) {
+              setState(() {
+                _imageWidth = info.image.width;
+                _imageHeight = info.image.height;
+              });
+            }
+          }),
+        );
   }
 
   // 初始化（刷新）编辑控制器
@@ -604,7 +629,7 @@ class _ImageDetailState extends State<ImageDetail> {
         },
       );
       if (response.statusCode == 200) {
-        if(mounted){
+        if (mounted) {
           widget.onImageDeleted!(imageID);
         }
         ScaffoldMessenger.of(
@@ -660,11 +685,32 @@ class _ImageDetailState extends State<ImageDetail> {
             ),
           ),
           SizedBox(height: 10),
-          IconButton(
-            onPressed: () => {_deleteImage(currentImage.imageID)},
-            icon: Icon(Icons.delete),
-            tooltip: '删除',
-            hoverColor: Colors.redAccent,
+          // 删除按钮和分辨率显示
+          Row(
+            children: [
+              IconButton(
+                onPressed: () => {_deleteImage(currentImage.imageID)},
+                icon: Icon(Icons.delete),
+                tooltip: '删除',
+                hoverColor: Colors.redAccent,
+              ),
+
+              // 添加分辨率显示
+              if (_imageWidth != null && _imageHeight != null)
+                Padding(
+                  padding: const EdgeInsets.only(left: 8.0),
+                  child: Text(
+                    '${_imageWidth}×${_imageHeight}',
+                    style: TextStyle(
+                      color: (_imageWidth! < 720 || _imageHeight! < 720)
+                          ? Colors
+                                .red // 小于720时标红
+                          : Colors.grey, // 正常显示为灰色
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+            ],
           ),
 
           // 问题和答案区域
