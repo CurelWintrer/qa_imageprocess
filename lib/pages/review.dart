@@ -122,6 +122,41 @@ class _ReviewState extends State<Review> {
       }
     });
   }
+
+  //删除图片
+  Future<void> _deleteImage(int imageID) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('${UserSession().baseUrl}/api/image/$imageID'),
+        headers: {
+          'Authorization': 'Bearer ${UserSession().token ?? ''}',
+          'Content-Type': 'application/json',
+        },
+      );
+      if (response.statusCode == 200) {
+        setState(() {
+        final index = _images.indexWhere(
+          (img) => img.imageID == imageID,
+        );
+        if (index != -1) {
+          _images.removeAt(index);
+        }
+        _isEditing = false;
+      });
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('删除成功')));
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('删除失败')));
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('删除失败')));
+    }
+  }
   
   // 提交编辑
   Future<void> _submitEdit(ImageModel image) async {
@@ -504,7 +539,7 @@ class _ReviewState extends State<Review> {
                   // 图片基本信息
                   _buildImageInfoSection(selectedImage),
                   const SizedBox(height: 20),
-                  
+                  IconButton(onPressed: ()=>{_deleteImage(selectedImage.imageID)}, icon: Icon(Icons.delete)),
                   // 问题和答案部分
                   if (selectedImage.questions != null && selectedImage.questions!.isNotEmpty) ...[
                     _buildQuestionAnswerSection(selectedImage.questions!.first),
