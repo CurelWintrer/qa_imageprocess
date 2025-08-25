@@ -173,7 +173,7 @@ class _WorkListState extends State<WorkList> {
 
   // 放弃任务API调用
   Future<void> _abandonWork(int workID) async {
-    final url = Uri.parse('${UserSession().baseUrl}/api/works/$workID/abandon');
+    final url = Uri.parse('${UserSession().baseUrl}/api/works/abandon');
 
     final headers = {
       'Authorization': 'Bearer ${UserSession().token}',
@@ -181,7 +181,11 @@ class _WorkListState extends State<WorkList> {
     };
 
     try {
-      final response = await http.post(url, headers: headers);
+      final response = await http.delete(
+        url,
+        headers: headers,
+        body: jsonEncode({'workID': workID}),
+      );
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -435,31 +439,29 @@ class _WorkListState extends State<WorkList> {
     );
   }
 
-  Future<void> _handleSubmit(WorkModel work,int newStatus) async {
-      await WorkState.submitWork(
-        context,
-        work,
-        newStatus,
-        onSuccess: (updatedWork) {
-          setState(() {
-            // _currentWork = updatedWork;
-            _works=_works.map((work){
-              if(work.workID==updatedWork.workID){
-                return updatedWork;
-              }
-              return work;
-            }).toList();
-          });
-          // 可以在这里添加更多成功处理逻辑
-          print("任务更新成功，新状态: ${updatedWork.state}");
-        },
-        onError: (error) {
-          // 错误处理
-          print("任务更新失败$error");
-          
-        }
-      );
-
+  Future<void> _handleSubmit(WorkModel work, int newStatus) async {
+    await WorkState.submitWork(
+      context,
+      work,
+      newStatus,
+      onSuccess: (updatedWork) {
+        setState(() {
+          // _currentWork = updatedWork;
+          _works = _works.map((work) {
+            if (work.workID == updatedWork.workID) {
+              return updatedWork;
+            }
+            return work;
+          }).toList();
+        });
+        // 可以在这里添加更多成功处理逻辑
+        print("任务更新成功，新状态: ${updatedWork.state}");
+      },
+      onError: (error) {
+        // 错误处理
+        print("任务更新失败$error");
+      },
+    );
   }
 
   // 状态标签
