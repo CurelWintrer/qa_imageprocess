@@ -121,6 +121,66 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
     }
   }
 
+  // Future<void> _executeAITask() async {
+  //   // 显示加载弹窗
+  //   showDialog(
+  //     context: context,
+  //     barrierDismissible: false,
+  //     builder: (context) => const Center(child: CircularProgressIndicator()),
+  //   );
+
+  //   setState(() => _isProcessing = true);
+
+  //   try {
+  //     // 1. 调用AI服务
+  //     final qa = await AiService.getQA(currentImage);
+  //     if (qa == null) throw Exception('AI服务返回空数据');
+
+  //     debugPrint('AI生成结果: ${qa.toString()}');
+
+  //     // 2. 更新到后端API
+  //     final updatedImage = await _updateImageQA(
+  //       imageId: currentImage.imageID,
+  //       questionText: qa.question,
+  //       answers: qa.options,
+  //       rightAnswerIndex: qa.correctAnswer,
+  //       explanation: qa.explanation,
+  //       textCOT: qa.textCOT,
+  //     );
+
+  //     if (updatedImage == null) throw Exception('图片更新失败');
+
+  //     // 3. 更新UI状态
+  //     if (mounted) {
+  //       setState(() {
+  //         currentImage = updatedImage;
+  //         _initEditControllers();
+  //         _isEditing = false;
+  //       });
+  //       widget.onImageUpdated(updatedImage);
+  //     }
+
+  //     // 4. 显示成功提示
+  //     ScaffoldMessenger.of(
+  //       context,
+  //     ).showSnackBar(const SnackBar(content: Text('AI处理完成')));
+  //   } catch (e, stackTrace) {
+  //     debugPrint('AI处理错误: $e\n$stackTrace');
+  //     if (mounted) {
+  //       ScaffoldMessenger.of(
+  //         context,
+  //       ).showSnackBar(SnackBar(content: Text('处理失败: ${e.toString()}')));
+  //     }
+  //   } finally {
+  //     // 关闭加载弹窗
+  //     if (mounted) {
+  //       Navigator.of(context, rootNavigator: true).pop();
+  //       setState(() => _isProcessing = false);
+  //     }
+  //   }
+  // }
+
+
   // 加载更多图片
   void _loadMoreImages() {
     if (_hasMore && !_isLoading) {
@@ -167,6 +227,7 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
             onImageUpdated: _handleImageUpdated,
             onClose: () => Navigator.pop(context),
             onImageDeleted: _handleImageDeleted,
+            onImageOaUpdated: _handleImageQaUpadted,
           ),
         );
       },
@@ -1027,5 +1088,10 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
             : const Text('没有更多图片了', style: TextStyle(color: Colors.grey)),
       ),
     );
+  }
+
+  void _handleImageQaUpadted(ImageModel currentImage) {
+    _executeAITask(currentImage);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('正在加载，可关闭弹窗')));
   }
 }

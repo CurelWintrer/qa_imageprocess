@@ -1,24 +1,33 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
 import 'dart:ui';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
+import 'package:image/image.dart' as img;
+import 'package:path_provider/path_provider.dart';
 import 'package:qa_imageprocess/model/image_model.dart';
 import 'package:qa_imageprocess/model/image_state.dart';
 import 'package:qa_imageprocess/model/prompt/qa_response.dart';
 import 'package:qa_imageprocess/model/question_model.dart';
+import 'package:qa_imageprocess/tools/DownloadHelper.dart';
 import 'package:qa_imageprocess/tools/ai_service.dart';
 import 'package:qa_imageprocess/user_session.dart';
 
 typedef ImageUpdateCallback = void Function(ImageModel updatedImage);
 typedef ImageDeleteCallback = void Function(int imageID);
+typedef ImageAiQaCallback = void Function(ImageModel updatedImage);
 
 class ImageDetail extends StatefulWidget {
   final ImageModel image;
   final VoidCallback? onClose;
   final ImageUpdateCallback onImageUpdated;
   final ImageDeleteCallback? onImageDeleted;
+  final ImageAiQaCallback? onImageOaUpdated;
 
   const ImageDetail({
     super.key,
@@ -26,6 +35,7 @@ class ImageDetail extends StatefulWidget {
     this.onClose,
     required this.onImageUpdated,
     this.onImageDeleted,
+    this.onImageOaUpdated,
   });
 
   @override
@@ -45,6 +55,8 @@ class _ImageDetailState extends State<ImageDetail> {
   // 添加分辨率变量
   int? _imageWidth;
   int? _imageHeight;
+
+  bool _isMagnifying = false;
 
   @override
   void initState() {
@@ -618,6 +630,220 @@ class _ImageDetailState extends State<ImageDetail> {
     }
   }
 
+  // 图片上传方法
+  Future<void> _uploadImage() async {
+    try {
+      // 打开文件选择器，允许选择图片文件
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowMultiple: false, // 只允许选择单个文件
+      );
+
+      if (result != null && result.files.single.path != null) {
+        // 获取选中的文件
+        File file = File(result.files.single.path!);
+
+        // 创建多部分请求
+        var request = http.MultipartRequest(
+          'POST',
+          Uri.parse('${UserSession().baseUrl}/api/image/upload'),
+        );
+
+        // 添加授权头
+        request.headers['Authorization'] =
+            'Bearer ${UserSession().token ?? ''}';
+
+        // 添加文件部分
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'file', // 参数名，根据API文档
+            file.path,
+          ),
+        );
+
+        // 添加其他表单字段
+        request.fields['image_id'] = currentImage.imageID
+            .toString(); // 根据API文档，这个值可能需要动态获取
+
+        // 发送请求
+        var response = await request.send();
+        var responseData = await response.stream.bytesToString();
+        print(responseData);
+        // 处理响应
+        if (response.statusCode == 200) {
+          // 读取响应内容
+          // var responseData = await response.stream.bytesToString();
+          var jsonResponse = json.decode(responseData);
+
+          ImageModel newImage = ImageModel.fromJson(jsonResponse['data']);
+          ImageModel updatedImage = currentImage.copyWith(
+            fileName: newImage.fileName,
+            path: newImage.path,
+          );
+
+          // 3. 更新UI状态
+          if (mounted) {
+            setState(() {
+              currentImage = updatedImage;
+              _initEditControllers();
+              _isEditing = false;
+            });
+            widget.onImageUpdated(updatedImage);
+          }
+
+          if (jsonResponse['code'] == 200) {
+            // 上传成功
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('图片上传成功')));
+
+            // 可选：刷新图片列表
+            // _fetchWorkDetails();
+          } else {
+            // 服务器返回错误
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('上传失败: ${jsonResponse['message']}')),
+            );
+          }
+        } else {
+          // HTTP错误
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('上传失败: HTTP ${response.statusCode}')),
+          );
+        }
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('上传失败: $e')));
+    }
+  }
+
+  // 图片放大方法
+  Future<void> _magnifyImage() async {
+    if (_imageWidth! > 720 && _imageHeight! > 720) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('分辨率符合，无需放大')));
+      return;
+    }
+    try {
+      // 1. 获取当前图片URL
+      String imageUrl = '${UserSession().baseUrl}/${currentImage.path}';
+
+      // 2. 下载原始图片
+      final response = await http.get(Uri.parse(imageUrl));
+      if (response.statusCode != 200) {
+        throw Exception('下载图片失败: HTTP ${response.statusCode}');
+      }
+
+      // 3. 解码图片
+      Uint8List imageBytes = response.bodyBytes;
+      img.Image originalImage = img.decodeImage(imageBytes)!;
+
+      // 4. 计算放大比例（目标至少720p）
+      double scaleFactor = 1.0;
+      if (originalImage.width < 1280 || originalImage.height < 720) {
+        double widthScale = 1280 / originalImage.width;
+        double heightScale = 720 / originalImage.height;
+        scaleFactor = widthScale > heightScale ? widthScale : heightScale;
+      }
+
+      // 5. 放大图片
+      img.Image magnifiedImage = img.copyResize(
+        originalImage,
+        width: (originalImage.width * scaleFactor).round(),
+        height: (originalImage.height * scaleFactor).round(),
+        interpolation: img.Interpolation.cubic, // 使用高质量插值算法
+      );
+
+      // 6. 保存放大后的图片到临时文件
+      final directory = await getTemporaryDirectory();
+      final filePath =
+          '${directory.path}/magnified_${currentImage.imageID}.jpg';
+      File magnifiedFile = File(filePath);
+      await magnifiedFile.writeAsBytes(
+        img.encodeJpg(magnifiedImage, quality: 95),
+      );
+
+      // 7. 上传放大后的图片
+      await _uploadMagnifiedImage(magnifiedFile);
+
+      // 8. 删除临时文件
+      await magnifiedFile.delete();
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('图片放大失败: $e')));
+    }
+  }
+
+  // 上传放大后的图片
+  Future<void> _uploadMagnifiedImage(File magnifiedFile) async {
+    try {
+      // 创建多部分请求
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('${UserSession().baseUrl}/api/image/upload'),
+      );
+
+      // 添加授权头
+      request.headers['Authorization'] = 'Bearer ${UserSession().token ?? ''}';
+
+      // 添加文件部分
+      request.files.add(
+        await http.MultipartFile.fromPath('file', magnifiedFile.path),
+      );
+
+      // 添加其他表单字段
+      request.fields['image_id'] = currentImage.imageID.toString();
+
+      // 发送请求
+      var response = await request.send();
+      var responseData = await response.stream.bytesToString();
+      print(responseData);
+
+      // 处理响应
+      if (response.statusCode == 200) {
+        var jsonResponse = json.decode(responseData);
+
+        ImageModel newImage = ImageModel.fromJson(jsonResponse['data']);
+        ImageModel updatedImage = currentImage.copyWith(
+          fileName: newImage.fileName,
+          path: newImage.path,
+        );
+
+        // 更新UI状态
+        if (mounted) {
+          setState(() {
+            currentImage = updatedImage;
+            _initEditControllers();
+            _isEditing = false;
+          });
+          widget.onImageUpdated(updatedImage);
+        }
+
+        if (jsonResponse['code'] == 200) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('放大图片上传成功')));
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('上传失败: ${jsonResponse['message']}')),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('上传失败: HTTP ${response.statusCode}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('上传失败: $e')));
+    }
+  }
+
   //删除图片
   Future<void> _deleteImage(int imageID) async {
     try {
@@ -694,6 +920,31 @@ class _ImageDetailState extends State<ImageDetail> {
                 tooltip: '删除',
                 hoverColor: Colors.redAccent,
               ),
+              SizedBox(width: 10),
+              IconButton(
+                onPressed: () => {
+                  DownloadHelper.downloadImage(
+                    context: context,
+                    imgPath: currentImage.path ?? '',
+                    imgName: currentImage.fileName ?? '',
+                  ),
+                },
+                icon: Icon(Icons.download),
+                tooltip: '下载',
+                hoverColor: Colors.redAccent,
+              ),
+              SizedBox(width: 10),
+              IconButton(
+                onPressed: () => {_uploadImage()},
+                icon: Icon(Icons.upload),
+                tooltip: '上传更新',
+              ),
+              SizedBox(width: 10),
+              IconButton(
+                onPressed: () => {_magnifyImage()},
+                icon: Icon(Icons.find_in_page),
+                tooltip: '放大',
+              ),
 
               // 添加分辨率显示
               if (_imageWidth != null && _imageHeight != null)
@@ -728,7 +979,9 @@ class _ImageDetailState extends State<ImageDetail> {
                       children: [
                         // AI-QA按钮
                         IconButton(
-                          onPressed: _isProcessing ? null : _executeAITask,
+                          // onPressed: _isProcessing ? null : _executeAITask,
+                          onPressed: () =>
+                              widget.onImageOaUpdated!(currentImage),
                           icon: const Icon(Icons.auto_awesome),
                           tooltip: 'AI-QA',
                         ),
