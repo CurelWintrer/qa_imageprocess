@@ -954,7 +954,6 @@ class _ImageDetailState extends State<ImageDetail> {
                 },
                 icon: Icon(Icons.download),
                 tooltip: '下载',
-                hoverColor: Colors.redAccent,
               ),
               SizedBox(width: 10),
               IconButton(

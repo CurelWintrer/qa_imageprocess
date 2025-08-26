@@ -10,6 +10,7 @@ import 'package:qa_imageprocess/model/image_model.dart';
 import 'package:qa_imageprocess/model/image_state.dart';
 import 'package:qa_imageprocess/model/question_model.dart';
 import 'package:qa_imageprocess/user_session.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class GetSimilarImage extends StatefulWidget {
   const GetSimilarImage({super.key});
@@ -55,6 +56,7 @@ class _GetSimilarImageState extends State<GetSimilarImage> {
   void initState() {
     super.initState();
     _fetchCategories();
+    _loadParameters();
   }
 
   @override
@@ -190,7 +192,149 @@ class _GetSimilarImageState extends State<GetSimilarImage> {
   }
 
   // 显示参数设置对话框
+  // void _showParameterSettingsDialog() {
+  //   showDialog(
+  //     context: context,
+  //     builder: (BuildContext context) {
+  //       return StatefulBuilder(
+  //         builder: (context, setState) {
+  //           return AlertDialog(
+  //             title: Text('相似度参数设置'),
+  //             content: SingleChildScrollView(
+  //               child: Column(
+  //                 mainAxisSize: MainAxisSize.min,
+  //                 children: [
+  //                   _buildParameterSlider(
+  //                     'Clip 阈值',
+  //                     clip_threshold,
+  //                     0,
+  //                     100,
+  //                     (value) => setState(() => clip_threshold = value/100),
+  //                   ),
+  //                   _buildParameterSlider(
+  //                     'ResNet 阈值',
+  //                     resnet_threshold,
+  //                     0,
+  //                     100,
+  //                     (value) => setState(() => resnet_threshold = value/100),
+  //                   ),
+  //                   _buildParameterSlider(
+  //                     'PHash 阈值',
+  //                     phash_threshold.toDouble(),
+  //                     0,
+  //                     100,
+  //                     (value) =>
+  //                         setState(() => phash_threshold = value.toInt()),
+  //                     isInt: true,
+  //                   ),
+  //                   _buildParameterSlider(
+  //                     '文本阈值',
+  //                     text_threshold,
+  //                     0,
+  //                     100,
+  //                     (value) => setState(() => text_threshold = value/100),
+  //                   ),
+  //                   _buildParameterSlider(
+  //                     '聚类阈值',
+  //                     cluster_threshold.toDouble(),
+  //                     0,
+  //                     500,
+  //                     (value) =>
+  //                         setState(() => cluster_threshold = value.toInt()),
+  //                     isInt: true,
+  //                   ),
+  //                   _buildParameterSlider(
+  //                     '线程数',
+  //                     threads.toDouble(),
+  //                     1,
+  //                     16,
+  //                     (value) => setState(() => threads = value.toInt()),
+  //                     isInt: true,
+  //                   ),
+  //                 ],
+  //               ),
+  //             ),
+  //             actions: [
+  //               TextButton(
+  //                 onPressed: () => Navigator.pop(context),
+  //                 child: Text('取消'),
+  //               ),
+  //               TextButton(
+  //                 onPressed: () {
+  //                   Navigator.pop(context);
+  //                   // 保存参数设置
+  //                   ScaffoldMessenger.of(
+  //                     context,
+  //                   ).showSnackBar(SnackBar(content: Text('参数已更新')));
+  //                 },
+  //                 child: Text('确认'),
+  //               ),
+  //             ],
+  //           );
+  //         },
+  //       );
+  //     },
+  //   );
+  // }
+
+  // // 构建参数滑块控件
+  // Widget _buildParameterSlider(
+  //   String label,
+  //   double value,
+  //   double min,
+  //   double max,
+  //   ValueChanged<double> onChanged, {
+  //   bool isInt = false,
+  // }) {
+  //   return Padding(
+  //     padding: const EdgeInsets.symmetric(vertical: 8.0),
+  //     child: Column(
+  //       crossAxisAlignment: CrossAxisAlignment.start,
+  //       children: [
+  //         Text('$label: ${isInt ? value.toInt() : value.toStringAsFixed(2)}'),
+  //         Slider(
+  //           value: value,
+  //           min: min,
+  //           max: max,
+  //           divisions: (max - min).toInt(),
+  //           onChanged: onChanged,
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
+  // 显示参数设置对话框
+  Future<void> _loadParameters() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      clip_threshold = prefs.getDouble('clip_threshold') ?? 0.75;
+      resnet_threshold = prefs.getDouble('resnet_threshold') ?? 0.85;
+      phash_threshold = prefs.getInt('phash_threshold') ?? 20;
+      text_threshold = prefs.getDouble('text_threshold') ?? 0.7;
+      cluster_threshold = prefs.getInt('cluster_threshold') ?? 100;
+      threads = prefs.getInt('threads') ?? 4;
+    });
+  }
+
+  Future<void> _saveParameters() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('clip_threshold', clip_threshold);
+    await prefs.setDouble('resnet_threshold', resnet_threshold);
+    await prefs.setInt('phash_threshold', phash_threshold);
+    await prefs.setDouble('text_threshold', text_threshold);
+    await prefs.setInt('cluster_threshold', cluster_threshold);
+    await prefs.setInt('threads', threads);
+  }
+
   void _showParameterSettingsDialog() {
+    // 创建临时变量存储当前设置
+    double tempClipThreshold = clip_threshold;
+    double tempResnetThreshold = resnet_threshold;
+    int tempPhashThreshold = phash_threshold;
+    double tempTextThreshold = text_threshold;
+    int tempClusterThreshold = cluster_threshold;
+    int tempThreads = threads;
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -202,52 +346,58 @@ class _GetSimilarImageState extends State<GetSimilarImage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _buildParameterSlider(
+                    // Clip 阈值
+                    _buildDecimalParameterSlider(
                       'Clip 阈值',
-                      clip_threshold,
+                      tempClipThreshold,
                       0.0,
                       1.0,
-                      (value) => setState(() => clip_threshold = value),
+                      (value) => setState(() => tempClipThreshold = value),
                     ),
-                    _buildParameterSlider(
+
+                    // ResNet 阈值
+                    _buildDecimalParameterSlider(
                       'ResNet 阈值',
-                      resnet_threshold,
+                      tempResnetThreshold,
                       0.0,
                       1.0,
-                      (value) => setState(() => resnet_threshold = value),
+                      (value) => setState(() => tempResnetThreshold = value),
                     ),
-                    _buildParameterSlider(
+
+                    // PHash 阈值
+                    _buildIntegerParameterSlider(
                       'PHash 阈值',
-                      phash_threshold.toDouble(),
+                      tempPhashThreshold,
                       0,
                       100,
-                      (value) =>
-                          setState(() => phash_threshold = value.toInt()),
-                      isInt: true,
+                      (value) => setState(() => tempPhashThreshold = value),
                     ),
-                    _buildParameterSlider(
+
+                    // 文本阈值
+                    _buildDecimalParameterSlider(
                       '文本阈值',
-                      text_threshold,
+                      tempTextThreshold,
                       0.0,
                       1.0,
-                      (value) => setState(() => text_threshold = value),
+                      (value) => setState(() => tempTextThreshold = value),
                     ),
-                    _buildParameterSlider(
+
+                    // 聚类阈值
+                    _buildIntegerParameterSlider(
                       '聚类阈值',
-                      cluster_threshold.toDouble(),
+                      tempClusterThreshold,
                       0,
                       500,
-                      (value) =>
-                          setState(() => cluster_threshold = value.toInt()),
-                      isInt: true,
+                      (value) => setState(() => tempClusterThreshold = value),
                     ),
-                    _buildParameterSlider(
+
+                    // 线程数
+                    _buildIntegerParameterSlider(
                       '线程数',
-                      threads.toDouble(),
+                      tempThreads,
                       1,
                       16,
-                      (value) => setState(() => threads = value.toInt()),
-                      isInt: true,
+                      (value) => setState(() => tempThreads = value),
                     ),
                   ],
                 ),
@@ -259,8 +409,17 @@ class _GetSimilarImageState extends State<GetSimilarImage> {
                 ),
                 TextButton(
                   onPressed: () {
+                    setState(() {
+                      clip_threshold = tempClipThreshold;
+                      resnet_threshold = tempResnetThreshold;
+                      phash_threshold = tempPhashThreshold;
+                      text_threshold = tempTextThreshold;
+                      cluster_threshold = tempClusterThreshold;
+                      threads = tempThreads;
+                    });
+                    _saveParameters();
+
                     Navigator.pop(context);
-                    // 保存参数设置
                     ScaffoldMessenger.of(
                       context,
                     ).showSnackBar(SnackBar(content: Text('参数已更新')));
@@ -275,27 +434,54 @@ class _GetSimilarImageState extends State<GetSimilarImage> {
     );
   }
 
-  // 构建参数滑块控件
-  Widget _buildParameterSlider(
+  // 构建小数参数滑块控件（精确到小数点后两位）
+  Widget _buildDecimalParameterSlider(
     String label,
     double value,
     double min,
     double max,
-    ValueChanged<double> onChanged, {
-    bool isInt = false,
-  }) {
+    ValueChanged<double> onChanged,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('$label: ${isInt ? value.toInt() : value.toStringAsFixed(2)}'),
+          Text('$label: ${value.toStringAsFixed(2)}'),
           Slider(
             value: value,
             min: min,
             max: max,
-            divisions: (max - min).toInt(),
+            divisions: (max - min) ~/ 0.01, // 每0.01一个步长
+            label: value.toStringAsFixed(2),
             onChanged: onChanged,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 构建整数参数滑块控件
+  Widget _buildIntegerParameterSlider(
+    String label,
+    int value,
+    int min,
+    int max,
+    ValueChanged<int> onChanged,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('$label: $value'),
+          Slider(
+            value: value.toDouble(),
+            min: min.toDouble(),
+            max: max.toDouble(),
+            divisions: max - min,
+            label: value.toString(),
+            onChanged: (double value) => onChanged(value.toInt()),
           ),
         ],
       ),
