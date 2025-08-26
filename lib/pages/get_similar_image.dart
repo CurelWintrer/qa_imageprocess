@@ -44,6 +44,13 @@ class _GetSimilarImageState extends State<GetSimilarImage> {
   int _currentGroupIndex = 0;
   bool _isProcessing = false;
 
+  double clip_threshold = 0.85;
+  double resnet_threshold = 0.85;
+  int phash_threshold = 30;
+  double text_threshold = 0.7;
+  int cluster_threshold = 200;
+  int threads = 8;
+
   @override
   void initState() {
     super.initState();
@@ -170,7 +177,6 @@ class _GetSimilarImageState extends State<GetSimilarImage> {
       // 3. 获取重复图片信息
       for (var group in duplicateGroups) {
         await _fetchImagesByName(group);
-
       }
     } catch (e) {
       ScaffoldMessenger.of(
@@ -181,6 +187,119 @@ class _GetSimilarImageState extends State<GetSimilarImage> {
         _isProcessing = false;
       });
     }
+  }
+
+  // 显示参数设置对话框
+  void _showParameterSettingsDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text('相似度参数设置'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildParameterSlider(
+                      'Clip 阈值',
+                      clip_threshold,
+                      0.0,
+                      1.0,
+                      (value) => setState(() => clip_threshold = value),
+                    ),
+                    _buildParameterSlider(
+                      'ResNet 阈值',
+                      resnet_threshold,
+                      0.0,
+                      1.0,
+                      (value) => setState(() => resnet_threshold = value),
+                    ),
+                    _buildParameterSlider(
+                      'PHash 阈值',
+                      phash_threshold.toDouble(),
+                      0,
+                      100,
+                      (value) =>
+                          setState(() => phash_threshold = value.toInt()),
+                      isInt: true,
+                    ),
+                    _buildParameterSlider(
+                      '文本阈值',
+                      text_threshold,
+                      0.0,
+                      1.0,
+                      (value) => setState(() => text_threshold = value),
+                    ),
+                    _buildParameterSlider(
+                      '聚类阈值',
+                      cluster_threshold.toDouble(),
+                      0,
+                      500,
+                      (value) =>
+                          setState(() => cluster_threshold = value.toInt()),
+                      isInt: true,
+                    ),
+                    _buildParameterSlider(
+                      '线程数',
+                      threads.toDouble(),
+                      1,
+                      16,
+                      (value) => setState(() => threads = value.toInt()),
+                      isInt: true,
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text('取消'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    // 保存参数设置
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text('参数已更新')));
+                  },
+                  child: Text('确认'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // 构建参数滑块控件
+  Widget _buildParameterSlider(
+    String label,
+    double value,
+    double min,
+    double max,
+    ValueChanged<double> onChanged, {
+    bool isInt = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('$label: ${isInt ? value.toInt() : value.toStringAsFixed(2)}'),
+          Slider(
+            value: value,
+            min: min,
+            max: max,
+            divisions: (max - min).toInt(),
+            onChanged: onChanged,
+          ),
+        ],
+      ),
+    );
   }
 
   // 删除文件夹内的所有图片文件
@@ -324,7 +443,24 @@ class _GetSimilarImageState extends State<GetSimilarImage> {
   // 运行Python脚本并解析结果
   Future<List<List<String>>> _runPythonScriptAndParse() async {
     final script = path.join('${UserSession().getRepetPath}', 'script.exe');
-    final result = await Process.run(script, [_selectedFolderPath!]);
+    // 构建参数列表
+    final args = [
+      _selectedFolderPath!,
+      '--clip_threshold',
+      clip_threshold.toString(),
+      '--resnet_threshold',
+      resnet_threshold.toString(),
+      '--phash_threshold',
+      phash_threshold.toString(),
+      '--text_threshold',
+      text_threshold.toString(),
+      '--cluster_threshold',
+      cluster_threshold.toString(),
+      '--threads',
+      threads.toString(),
+    ];
+    // final result = await Process.run(script, [_selectedFolderPath!]);
+    final result = await Process.run(script, args);
 
     if (result.exitCode != 0) {
       throw Exception('Python脚本执行失败: ${result.stderr}');
@@ -423,64 +559,76 @@ class _GetSimilarImageState extends State<GetSimilarImage> {
       throw Exception('获取图片信息失败: $e');
     }
   }
-    // 处理图片更新回调
-  // 处理图片更新回调
-void _handleImageUpdated(ImageModel updatedImage) {
-  setState(() {
-    // 遍历所有相似图片分组
-    for (var groupIndex = 0; groupIndex < _similarImageGroups.length; groupIndex++) {
-      final group = _similarImageGroups[groupIndex];
-      
-      // 在当前分组中查找需要更新的图片
-      final imageIndex = group.indexWhere((img) => img.imageID == updatedImage.imageID);
-      if (imageIndex != -1) {
-        // 更新图片信息
-        group[imageIndex] = updatedImage;
-        
-        // 更新分组引用
-        _similarImageGroups[groupIndex] = List.from(group);
-        break;
-      }
-    }
-  });
-}
 
-// 处理图片删除回调
-void _handleImageDeleted(int imageID) {
-  setState(() {
-    // 遍历所有相似图片分组
-    for (var groupIndex = 0; groupIndex < _similarImageGroups.length; groupIndex++) {
-      final group = _similarImageGroups[groupIndex];
-      
-      // 在当前分组中查找需要删除的图片
-      final imageIndex = group.indexWhere((img) => img.imageID == imageID);
-      if (imageIndex != -1) {
-        // 从分组中移除图片
-        group.removeAt(imageIndex);
-        
-        // 如果分组中图片数量少于2，移除整个分组（不再构成相似）
-        if (group.length < 2) {
-          _similarImageGroups.removeAt(groupIndex);
-          
-          // 调整当前分组索引
-          if (_currentGroupIndex >= _similarImageGroups.length) {
-            _currentGroupIndex = _similarImageGroups.length > 0 
-              ? _similarImageGroups.length - 1 
-              : 0;
-          }
-        } else {
+  // 处理图片更新回调
+  // 处理图片更新回调
+  void _handleImageUpdated(ImageModel updatedImage) {
+    setState(() {
+      // 遍历所有相似图片分组
+      for (
+        var groupIndex = 0;
+        groupIndex < _similarImageGroups.length;
+        groupIndex++
+      ) {
+        final group = _similarImageGroups[groupIndex];
+
+        // 在当前分组中查找需要更新的图片
+        final imageIndex = group.indexWhere(
+          (img) => img.imageID == updatedImage.imageID,
+        );
+        if (imageIndex != -1) {
+          // 更新图片信息
+          group[imageIndex] = updatedImage;
+
           // 更新分组引用
           _similarImageGroups[groupIndex] = List.from(group);
+          break;
         }
-        
-        break;
       }
-    }
-  });
-  
-  // 关闭图片详情弹窗
-  Navigator.pop(context);
-}
+    });
+  }
+
+  // 处理图片删除回调
+  void _handleImageDeleted(int imageID) {
+    setState(() {
+      // 遍历所有相似图片分组
+      for (
+        var groupIndex = 0;
+        groupIndex < _similarImageGroups.length;
+        groupIndex++
+      ) {
+        final group = _similarImageGroups[groupIndex];
+
+        // 在当前分组中查找需要删除的图片
+        final imageIndex = group.indexWhere((img) => img.imageID == imageID);
+        if (imageIndex != -1) {
+          // 从分组中移除图片
+          group.removeAt(imageIndex);
+
+          // 如果分组中图片数量少于2，移除整个分组（不再构成相似）
+          if (group.length < 2) {
+            _similarImageGroups.removeAt(groupIndex);
+
+            // 调整当前分组索引
+            if (_currentGroupIndex >= _similarImageGroups.length) {
+              _currentGroupIndex = _similarImageGroups.length > 0
+                  ? _similarImageGroups.length - 1
+                  : 0;
+            }
+          } else {
+            // 更新分组引用
+            _similarImageGroups[groupIndex] = List.from(group);
+          }
+
+          break;
+        }
+      }
+    });
+
+    // 关闭图片详情弹窗
+    Navigator.pop(context);
+  }
+
   // 打开图片详情弹窗
   void _openImageDetail(ImageModel image) {
     showDialog(
@@ -501,7 +649,6 @@ void _handleImageDeleted(int imageID) {
     );
   }
 
-
   Widget _buildGridItem(ImageModel image) {
     final firstQuestion = image.questions?.isNotEmpty == true
         ? image.questions?.first
@@ -509,7 +656,9 @@ void _handleImageDeleted(int imageID) {
 
     return GestureDetector(
       onLongPress: () => {},
-      onTap: () {_openImageDetail(image);},
+      onTap: () {
+        _openImageDetail(image);
+      },
       child: Stack(
         children: [
           Column(
@@ -726,6 +875,12 @@ void _handleImageDeleted(int imageID) {
               ),
               child: const Text('查询', style: TextStyle(fontSize: 16)),
             ),
+          ),
+          SizedBox(width: 20),
+          IconButton(
+            onPressed: _showParameterSettingsDialog,
+            icon: Icon(Icons.settings),
+            tooltip: '参数设置',
           ),
         ],
       ),
