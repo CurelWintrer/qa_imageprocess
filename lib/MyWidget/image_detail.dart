@@ -721,62 +721,81 @@ class _ImageDetailState extends State<ImageDetail> {
 
   // 图片放大方法
   Future<void> _magnifyImage() async {
-    if (_imageWidth! > 720 && _imageHeight! > 720) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('分辨率符合，无需放大')));
+  // 检查当前图片是否已经满足分辨率要求
+  if (_imageWidth != null && _imageHeight != null) {
+    if (_imageWidth! >= 720 && _imageHeight! >= 720) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('分辨率符合，无需放大')),
+      );
       return;
     }
-    try {
-      // 1. 获取当前图片URL
-      String imageUrl = '${UserSession().baseUrl}/${currentImage.path}';
-
-      // 2. 下载原始图片
-      final response = await http.get(Uri.parse(imageUrl));
-      if (response.statusCode != 200) {
-        throw Exception('下载图片失败: HTTP ${response.statusCode}');
-      }
-
-      // 3. 解码图片
-      Uint8List imageBytes = response.bodyBytes;
-      img.Image originalImage = img.decodeImage(imageBytes)!;
-
-      // 4. 计算放大比例（目标至少720p）
-      double scaleFactor = 1.0;
-      if (originalImage.width < 1280 || originalImage.height < 720) {
-        double widthScale = 1280 / originalImage.width;
-        double heightScale = 720 / originalImage.height;
-        scaleFactor = widthScale > heightScale ? widthScale : heightScale;
-      }
-
-      // 5. 放大图片
-      img.Image magnifiedImage = img.copyResize(
-        originalImage,
-        width: (originalImage.width * scaleFactor).round(),
-        height: (originalImage.height * scaleFactor).round(),
-        interpolation: img.Interpolation.cubic, // 使用高质量插值算法
-      );
-
-      // 6. 保存放大后的图片到临时文件
-      final directory = await getTemporaryDirectory();
-      final filePath =
-          '${directory.path}/magnified_${currentImage.imageID}.jpg';
-      File magnifiedFile = File(filePath);
-      await magnifiedFile.writeAsBytes(
-        img.encodeJpg(magnifiedImage, quality: 95),
-      );
-
-      // 7. 上传放大后的图片
-      await _uploadMagnifiedImage(magnifiedFile);
-
-      // 8. 删除临时文件
-      await magnifiedFile.delete();
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('图片放大失败: $e')));
-    }
   }
+
+  try {
+    // 1. 获取当前图片URL
+    String imageUrl = '${UserSession().baseUrl}/${currentImage.path}';
+
+    // 2. 下载原始图片
+    final response = await http.get(Uri.parse(imageUrl));
+    if (response.statusCode != 200) {
+      throw Exception('下载图片失败: HTTP ${response.statusCode}');
+    }
+
+    // 3. 解码图片
+    Uint8List imageBytes = response.bodyBytes;
+    img.Image originalImage = img.decodeImage(imageBytes)!;
+
+    // 4. 计算放大比例（目标至少720像素）
+    double scaleFactor = 1.0;
+    
+    // 如果任意一边小于720，则计算放大比例
+    if (originalImage.width < 720 || originalImage.height < 720) {
+      // 计算需要放大的比例
+      double widthScale = originalImage.width < 720 ? 720 / originalImage.width : 1.0;
+      double heightScale = originalImage.height < 720 ? 720 / originalImage.height : 1.0;
+      
+      // 取较大的比例，确保两边都至少达到720像素
+      scaleFactor = widthScale > heightScale ? widthScale : heightScale;
+    } else {
+      // 如果两边都已经大于720，但之前检查未通过（可能是_imageWidth/_imageHeight未正确更新）
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('分辨率符合，无需放大')),
+      );
+      return;
+    }
+
+    // 5. 按比例放大图片
+    img.Image magnifiedImage = img.copyResize(
+      originalImage,
+      width: (originalImage.width * scaleFactor).round(),
+      height: (originalImage.height * scaleFactor).round(),
+      interpolation: img.Interpolation.cubic, // 使用高质量插值算法
+    );
+
+    // 6. 保存放大后的图片到临时文件
+    final directory = await getTemporaryDirectory();
+    final filePath = '${directory.path}/magnified_${currentImage.imageID}.jpg';
+    File magnifiedFile = File(filePath);
+    await magnifiedFile.writeAsBytes(
+      img.encodeJpg(magnifiedImage, quality: 95),
+    );
+
+    // 7. 上传放大后的图片
+    await _uploadMagnifiedImage(magnifiedFile);
+
+    // 8. 删除临时文件
+    await magnifiedFile.delete();
+    
+    // 9. 显示成功消息
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('图片已成功放大并上传')),
+    );
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('图片放大失败: $e')),
+    );
+  }
+}
 
   // 上传放大后的图片
   Future<void> _uploadMagnifiedImage(File magnifiedFile) async {
