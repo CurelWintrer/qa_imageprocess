@@ -523,6 +523,8 @@ void _handleImageDeleted(int imageID) {
         title: const Text('重复图片管理'),
         centerTitle: true,
         actions: [
+          IconButton(onPressed: ()=>{_fetchDuplicateGroups()}, icon: Icon(Icons.refresh),tooltip: '刷新'),
+          SizedBox(width: 15),
           SizedBox(
             width: 120,
             height: 36,
