@@ -820,6 +820,7 @@ class _ImageDetailState extends State<ImageDetail> {
             _initEditControllers();
             _isEditing = false;
           });
+          _calculateImageResolution();
           widget.onImageUpdated(updatedImage);
         }
 
