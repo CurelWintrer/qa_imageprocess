@@ -7,15 +7,13 @@ import 'dart:ui';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:http_parser/http_parser.dart';
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
 import 'package:qa_imageprocess/model/image_model.dart';
 import 'package:qa_imageprocess/model/image_state.dart';
-import 'package:qa_imageprocess/model/prompt/qa_response.dart';
 import 'package:qa_imageprocess/model/question_model.dart';
 import 'package:qa_imageprocess/tools/DownloadHelper.dart';
-import 'package:qa_imageprocess/tools/ai_service.dart';
+// import 'package:qa_imageprocess/tools/ai_service.dart';
 import 'package:qa_imageprocess/user_session.dart';
 
 typedef ImageUpdateCallback = void Function(ImageModel updatedImage);
@@ -56,7 +54,7 @@ class _ImageDetailState extends State<ImageDetail> {
   int? _imageWidth;
   int? _imageHeight;
 
-  bool _isMagnifying = false;
+  // bool _isMagnifying = false;
 
   @override
   void initState() {
@@ -571,64 +569,64 @@ class _ImageDetailState extends State<ImageDetail> {
   }
 
   // 执行AI操作（耗时任务）
-  Future<void> _executeAITask() async {
-    // 显示加载弹窗
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
-    );
+  // Future<void> _executeAITask() async {
+  //   // 显示加载弹窗
+  //   showDialog(
+  //     context: context,
+  //     barrierDismissible: false,
+  //     builder: (context) => const Center(child: CircularProgressIndicator()),
+  //   );
 
-    setState(() => _isProcessing = true);
+  //   setState(() => _isProcessing = true);
 
-    try {
-      // 1. 调用AI服务
-      final qa = await AiService.getQA(currentImage);
-      if (qa == null) throw Exception('AI服务返回空数据');
+  //   try {
+  //     // 1. 调用AI服务
+  //     final qa = await AiService.getQA(currentImage);
+  //     if (qa == null) throw Exception('AI服务返回空数据');
 
-      debugPrint('AI生成结果: ${qa.toString()}');
+  //     debugPrint('AI生成结果: ${qa.toString()}');
 
-      // 2. 更新到后端API
-      final updatedImage = await _updateImageQA(
-        imageId: currentImage.imageID,
-        questionText: qa.question,
-        answers: qa.options,
-        rightAnswerIndex: qa.correctAnswer,
-        explanation: qa.explanation,
-        textCOT: qa.textCOT,
-      );
+  //     // 2. 更新到后端API
+  //     final updatedImage = await _updateImageQA(
+  //       imageId: currentImage.imageID,
+  //       questionText: qa.question,
+  //       answers: qa.options,
+  //       rightAnswerIndex: qa.correctAnswer,
+  //       explanation: qa.explanation,
+  //       textCOT: qa.textCOT,
+  //     );
 
-      if (updatedImage == null) throw Exception('图片更新失败');
+  //     if (updatedImage == null) throw Exception('图片更新失败');
 
-      // 3. 更新UI状态
-      if (mounted) {
-        setState(() {
-          currentImage = updatedImage;
-          _initEditControllers();
-          _isEditing = false;
-        });
-        widget.onImageUpdated(updatedImage);
-      }
+  //     // 3. 更新UI状态
+  //     if (mounted) {
+  //       setState(() {
+  //         currentImage = updatedImage;
+  //         _initEditControllers();
+  //         _isEditing = false;
+  //       });
+  //       widget.onImageUpdated(updatedImage);
+  //     }
 
-      // 4. 显示成功提示
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('AI处理完成')));
-    } catch (e, stackTrace) {
-      debugPrint('AI处理错误: $e\n$stackTrace');
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('处理失败: ${e.toString()}')));
-      }
-    } finally {
-      // 关闭加载弹窗
-      if (mounted) {
-        Navigator.of(context, rootNavigator: true).pop();
-        setState(() => _isProcessing = false);
-      }
-    }
-  }
+  //     // 4. 显示成功提示
+  //     ScaffoldMessenger.of(
+  //       context,
+  //     ).showSnackBar(const SnackBar(content: Text('AI处理完成')));
+  //   } catch (e, stackTrace) {
+  //     debugPrint('AI处理错误: $e\n$stackTrace');
+  //     if (mounted) {
+  //       ScaffoldMessenger.of(
+  //         context,
+  //       ).showSnackBar(SnackBar(content: Text('处理失败: ${e.toString()}')));
+  //     }
+  //   } finally {
+  //     // 关闭加载弹窗
+  //     if (mounted) {
+  //       Navigator.of(context, rootNavigator: true).pop();
+  //       setState(() => _isProcessing = false);
+  //     }
+  //   }
+  // }
 
   // 图片上传方法
   Future<void> _uploadImage() async {
@@ -721,81 +719,86 @@ class _ImageDetailState extends State<ImageDetail> {
 
   // 图片放大方法
   Future<void> _magnifyImage() async {
-  // 检查当前图片是否已经满足分辨率要求
-  if (_imageWidth != null && _imageHeight != null) {
-    if (_imageWidth! >= 720 && _imageHeight! >= 720) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('分辨率符合，无需放大')),
+    // 检查当前图片是否已经满足分辨率要求
+    if (_imageWidth != null && _imageHeight != null) {
+      if (_imageWidth! >= 720 && _imageHeight! >= 720) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('分辨率符合，无需放大')));
+        return;
+      }
+    }
+
+    try {
+      // 1. 获取当前图片URL
+      String imageUrl = '${UserSession().baseUrl}/${currentImage.path}';
+
+      // 2. 下载原始图片
+      final response = await http.get(Uri.parse(imageUrl));
+      if (response.statusCode != 200) {
+        throw Exception('下载图片失败: HTTP ${response.statusCode}');
+      }
+
+      // 3. 解码图片
+      Uint8List imageBytes = response.bodyBytes;
+      img.Image originalImage = img.decodeImage(imageBytes)!;
+
+      // 4. 计算放大比例（目标至少720像素）
+      double scaleFactor = 1.0;
+
+      // 如果任意一边小于720，则计算放大比例
+      if (originalImage.width < 720 || originalImage.height < 720) {
+        // 计算需要放大的比例
+        double widthScale = originalImage.width < 720
+            ? 720 / originalImage.width
+            : 1.0;
+        double heightScale = originalImage.height < 720
+            ? 720 / originalImage.height
+            : 1.0;
+
+        // 取较大的比例，确保两边都至少达到720像素
+        scaleFactor = widthScale > heightScale ? widthScale : heightScale;
+      } else {
+        // 如果两边都已经大于720，但之前检查未通过（可能是_imageWidth/_imageHeight未正确更新）
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('分辨率符合，无需放大')));
+        return;
+      }
+
+      // 5. 按比例放大图片
+      img.Image magnifiedImage = img.copyResize(
+        originalImage,
+        width: (originalImage.width * scaleFactor).round(),
+        height: (originalImage.height * scaleFactor).round(),
+        interpolation: img.Interpolation.cubic, // 使用高质量插值算法
       );
-      return;
+
+      // 6. 保存放大后的图片到临时文件
+      final directory = await getTemporaryDirectory();
+      final filePath =
+          '${directory.path}/magnified_${currentImage.imageID}.jpg';
+      File magnifiedFile = File(filePath);
+      await magnifiedFile.writeAsBytes(
+        img.encodeJpg(magnifiedImage, quality: 95),
+      );
+
+      // 7. 上传放大后的图片
+      await _uploadMagnifiedImage(magnifiedFile);
+
+      // 8. 删除临时文件
+      await magnifiedFile.delete();
+
+      // 9. 显示成功消息
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('图片已成功放大并上传')));
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('图片放大失败: $e')));
     }
   }
-
-  try {
-    // 1. 获取当前图片URL
-    String imageUrl = '${UserSession().baseUrl}/${currentImage.path}';
-
-    // 2. 下载原始图片
-    final response = await http.get(Uri.parse(imageUrl));
-    if (response.statusCode != 200) {
-      throw Exception('下载图片失败: HTTP ${response.statusCode}');
-    }
-
-    // 3. 解码图片
-    Uint8List imageBytes = response.bodyBytes;
-    img.Image originalImage = img.decodeImage(imageBytes)!;
-
-    // 4. 计算放大比例（目标至少720像素）
-    double scaleFactor = 1.0;
-    
-    // 如果任意一边小于720，则计算放大比例
-    if (originalImage.width < 720 || originalImage.height < 720) {
-      // 计算需要放大的比例
-      double widthScale = originalImage.width < 720 ? 720 / originalImage.width : 1.0;
-      double heightScale = originalImage.height < 720 ? 720 / originalImage.height : 1.0;
-      
-      // 取较大的比例，确保两边都至少达到720像素
-      scaleFactor = widthScale > heightScale ? widthScale : heightScale;
-    } else {
-      // 如果两边都已经大于720，但之前检查未通过（可能是_imageWidth/_imageHeight未正确更新）
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('分辨率符合，无需放大')),
-      );
-      return;
-    }
-
-    // 5. 按比例放大图片
-    img.Image magnifiedImage = img.copyResize(
-      originalImage,
-      width: (originalImage.width * scaleFactor).round(),
-      height: (originalImage.height * scaleFactor).round(),
-      interpolation: img.Interpolation.cubic, // 使用高质量插值算法
-    );
-
-    // 6. 保存放大后的图片到临时文件
-    final directory = await getTemporaryDirectory();
-    final filePath = '${directory.path}/magnified_${currentImage.imageID}.jpg';
-    File magnifiedFile = File(filePath);
-    await magnifiedFile.writeAsBytes(
-      img.encodeJpg(magnifiedImage, quality: 95),
-    );
-
-    // 7. 上传放大后的图片
-    await _uploadMagnifiedImage(magnifiedFile);
-
-    // 8. 删除临时文件
-    await magnifiedFile.delete();
-    
-    // 9. 显示成功消息
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('图片已成功放大并上传')),
-    );
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('图片放大失败: $e')),
-    );
-  }
-}
 
   // 上传放大后的图片
   Future<void> _uploadMagnifiedImage(File magnifiedFile) async {
@@ -1161,7 +1164,7 @@ class _ImageDetailState extends State<ImageDetail> {
         body: body,
       );
 
-      print(response.body);
+      //print(response.body);
 
       if (response.statusCode == 200) {
         final responseData = jsonDecode(response.body);

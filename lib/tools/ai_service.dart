@@ -7,7 +7,6 @@ import 'package:qa_imageprocess/model/image_model.dart';
 import 'package:qa_imageprocess/model/image_state.dart';
 import 'package:qa_imageprocess/model/prompt/category_model.dart';
 import 'package:qa_imageprocess/model/prompt/qa_response.dart';
-import 'package:qa_imageprocess/model/question_model.dart';
 import 'package:qa_imageprocess/user_session.dart';
 
 class AiService {

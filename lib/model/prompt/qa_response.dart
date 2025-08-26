@@ -53,7 +53,7 @@ class QaResponse {
 
       final jsonData = json.decode(match.group(1)!) as Map<String, dynamic>;
       return QaResponse.fromJson(jsonData);
-    } on FormatException catch (e) {
+    } on FormatException {
       // 尝试修复常见格式问题
       final sanitized = content
           .replaceAll(RegExp(r'[\r\n\t]'), ' ')

@@ -7,7 +7,6 @@ import 'package:http/http.dart' as http;
 import 'package:qa_imageprocess/model/image_model.dart';
 import 'package:qa_imageprocess/model/image_state.dart';
 import 'package:qa_imageprocess/model/question_model.dart';
-import 'package:qa_imageprocess/model/user.dart';
 import 'package:qa_imageprocess/tools/export_service.dart';
 import 'package:qa_imageprocess/user_session.dart';
 
@@ -365,7 +364,6 @@ class _AllimageState extends State<Allimage> {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final isWideScreen = constraints.maxWidth > 800;
 
           // 添加复选框部分
           final checkboxSection = Row(
