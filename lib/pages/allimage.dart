@@ -473,19 +473,7 @@ class _AllimageState extends State<Allimage> {
       ExportCategory = category['name'];
     }
 
-    // 转换日期为时间戳
-    int? startTime;
-    int? endTime;
-    
-    if (_startDate != null) {
-      startTime = _startDate!.millisecondsSinceEpoch;
-    }
-    
-    if (_endDate != null) {
-      // 将结束时间设置为当天的最后一刻
-      final endOfDay = DateTime(_endDate!.year, _endDate!.month, _endDate!.day, 23, 59, 59);
-      endTime = endOfDay.millisecondsSinceEpoch;
-    }
+
 
     // 使用复选框的值和时间戳作为参数
     exportService = ExportService(
@@ -494,8 +482,8 @@ class _AllimageState extends State<Allimage> {
       is_opinion: is_opinion,
       is_answer: is_answer,
       is_COT: is_COT,
-      startTime: startTime,
-      endTime: endTime,
+      startTime: _startDate?.millisecondsSinceEpoch.toString(),
+      endTime: _endDate?.millisecondsSinceEpoch.toString(),
     );
 
     setState(() => isExporting = true);

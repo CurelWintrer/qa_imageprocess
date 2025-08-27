@@ -22,8 +22,8 @@ class ExportService {
   bool is_answer = true;
   bool is_COT = true;
 
-  final int? startTime; // 新增：开始时间戳
-  final int? endTime;   // 新增：结束时间戳
+  final String? startTime; // 新增：开始时间戳
+  final String? endTime;   // 新增：结束时间戳
   ValueNotifier<double> progress = ValueNotifier<double>(0.0);
   ValueNotifier<String> status = ValueNotifier<String>('准备导出');
 
@@ -47,15 +47,32 @@ class ExportService {
     do {
       status.value = '正在获取图片 (第 $currentPage 页)...';
       
+       final Map<String, String> queryParams = {
+      'page': currentPage.toString(),
+      'pageSize': 60.toString(),
+    };
+
+
+    if(startTime!=null){
+      queryParams['startTime']=startTime!;
+    }
+    if(endTime!=null){
+      queryParams['endTime']=endTime!;
+    }
+
+        // 构建URL
+    final uri = Uri.parse(
+      '${UserSession().baseUrl}/api/image',
+    ).replace(queryParameters: queryParams);
+
+    print('$startTime   $endTime');
       // 构建基础URL
-      String url = '${UserSession().baseUrl}/api/image?page=$currentPage&pageSize=30&category=$category';
+      // String url = '${UserSession().baseUrl}/api/image?page=$currentPage&pageSize=60&category=$category&startTime=$startTime&endTime=$endTime';
+      // print(startTime);
+      // print(endTime);
+
       
-      // 添加时间范围参数（如果提供了）
-      if (startTime != null && endTime != null) {
-        url += '&startTime=$startTime&endTime=$endTime';
-      }
-      
-      final uri = Uri.parse(url);
+      // final uri = Uri.parse(url);
 
       try {
         final response = await http.get(
