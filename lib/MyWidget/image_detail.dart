@@ -1000,6 +1000,7 @@ class _ImageDetailState extends State<ImageDetail> {
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         // AI-QA按钮
+                        if(widget.onImageOaUpdated!=null)
                         IconButton(
                           // onPressed: _isProcessing ? null : _executeAITask,
                           onPressed: () =>

@@ -21,6 +21,9 @@ class ExportService {
   bool is_opinion = true;
   bool is_answer = true;
   bool is_COT = true;
+
+  final int? startTime; // 新增：开始时间戳
+  final int? endTime;   // 新增：结束时间戳
   ValueNotifier<double> progress = ValueNotifier<double>(0.0);
   ValueNotifier<String> status = ValueNotifier<String>('准备导出');
 
@@ -30,8 +33,11 @@ class ExportService {
     this.is_opinion = true,
     this.is_answer = true,
     this.is_COT = true,
+    this.startTime,
+    this.endTime,
   });
 
+  // 获取所有图片（分页）
   // 获取所有图片（分页）
   Future<List<ImageModel>> _fetchAllImages() async {
     int currentPage = 1;
@@ -40,9 +46,16 @@ class ExportService {
 
     do {
       status.value = '正在获取图片 (第 $currentPage 页)...';
-      final uri = Uri.parse(
-        '${UserSession().baseUrl}/api/image?page=$currentPage&pageSize=30&category=$category',
-      );
+      
+      // 构建基础URL
+      String url = '${UserSession().baseUrl}/api/image?page=$currentPage&pageSize=30&category=$category';
+      
+      // 添加时间范围参数（如果提供了）
+      if (startTime != null && endTime != null) {
+        url += '&startTime=$startTime&endTime=$endTime';
+      }
+      
+      final uri = Uri.parse(url);
 
       try {
         final response = await http.get(

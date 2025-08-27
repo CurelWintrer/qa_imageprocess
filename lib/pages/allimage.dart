@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:qa_imageprocess/MyWidget/image_detail.dart';
 import 'package:qa_imageprocess/model/image_model.dart';
 import 'package:qa_imageprocess/model/image_state.dart';
 import 'package:qa_imageprocess/model/question_model.dart';
@@ -52,6 +53,9 @@ class _AllimageState extends State<Allimage> {
   bool is_opinion = true;
   bool is_answer = true;
   bool is_COT = true;
+
+  DateTime? _startDate;
+  DateTime? _endDate;
 
   @override
   void initState() {
@@ -225,6 +229,13 @@ class _AllimageState extends State<Allimage> {
     if (_selectedDifficulty != null) {
       queryParams['difficulty'] = _selectedDifficulty.toString();
     }
+    if(_startDate!=null){
+      queryParams['startTime']=_startDate!.millisecondsSinceEpoch.toString();
+    }
+    if(_endDate!=null){
+      queryParams['endTime']=_endDate!.millisecondsSinceEpoch.toString();
+    }
+    print('$_startDate    $_endDate');
 
     // 构建URL
     final uri = Uri.parse(
@@ -271,83 +282,7 @@ class _AllimageState extends State<Allimage> {
     }
   }
 
-  // Widget _buildTitleSelector() {
-  //   return Container(
-  //     padding: const EdgeInsets.all(16.0),
-  //     decoration: BoxDecoration(
-  //       color: Colors.white,
-  //       boxShadow: [
-  //         BoxShadow(
-  //           color: Colors.grey.withOpacity(0.1),
-  //           spreadRadius: 1,
-  //           blurRadius: 3,
-  //           offset: const Offset(0, 2),
-  //         ),
-  //       ],
-  //     ),
-  //     child: LayoutBuilder(
-  //       builder: (context, constraints) {
-  //         final isWideScreen = constraints.maxWidth > 800;
 
-  //         final children = [
-  //           _buildCategoryDropdown(),
-  //           _buildCollectorTypeDropdown(),
-  //           _buildQuestionDirectionDropdown(),
-  //           _buildDifficultyDropdown(),
-
-  //           SizedBox(
-  //             width: 60,
-  //             height: 50,
-  //             child: ElevatedButton(
-  //               onPressed: () => {_handleSearch()},
-  //               style: ElevatedButton.styleFrom(
-  //                 backgroundColor: Colors.blue,
-  //                 foregroundColor: Colors.white,
-  //                 shape: RoundedRectangleBorder(
-  //                   borderRadius: BorderRadius.circular(8),
-  //                 ),
-  //               ),
-  //               child: const Text('查询', style: TextStyle(fontSize: 16)),
-  //             ),
-  //           ),
-  //           SizedBox(
-  //             width: 60,
-  //             height: 50,
-  //             child: ElevatedButton(
-  //               onPressed: () => {_startExport()},
-  //               style: ElevatedButton.styleFrom(
-  //                 backgroundColor: Colors.orange,
-  //                 foregroundColor: Colors.white,
-  //                 shape: RoundedRectangleBorder(
-  //                   borderRadius: BorderRadius.circular(8),
-  //                 ),
-  //               ),
-  //               child: const Text('导出', style: TextStyle(fontSize: 16)),
-  //             ),
-  //           ),
-  //         ];
-
-  //         if (isWideScreen) {
-  //           return Row(
-  //             children: children
-  //                 .map(
-  //                   (child) => Expanded(
-  //                     flex: 1,
-  //                     child: Padding(
-  //                       padding: const EdgeInsets.symmetric(horizontal: 8.0),
-  //                       child: child,
-  //                     ),
-  //                   ),
-  //                 )
-  //                 .toList(),
-  //           );
-  //         } else {
-  //           return Wrap(spacing: 16, runSpacing: 16, children: children);
-  //         }
-  //       },
-  //     ),
-  //   );
-  // }
   Widget _buildTitleSelector() {
     return Container(
       padding: const EdgeInsets.all(16.0),
@@ -377,6 +312,20 @@ class _AllimageState extends State<Allimage> {
               }),
               _buildCheckbox('COT', is_COT, (value) {
                 setState(() => is_COT = value!);
+              }),
+            ],
+          );
+
+                    // 添加时间选择器部分
+          final datePickerSection = Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildDatePicker('开始时间', _startDate, (date) {
+                setState(() => _startDate = date);
+              }),
+              const SizedBox(width: 8),
+              _buildDatePicker('结束时间', _endDate, (date) {
+                setState(() => _endDate = date);
               }),
             ],
           );
@@ -439,6 +388,8 @@ class _AllimageState extends State<Allimage> {
               children: [
                 Row(children: [Expanded(child: checkboxSection)]),
                 const SizedBox(height: 16),
+                Row(children: [Expanded(child: datePickerSection)]),
+                const SizedBox(height: 16),
                 Wrap(spacing: 16, runSpacing: 16, children: children),
               ],
             );
@@ -447,6 +398,48 @@ class _AllimageState extends State<Allimage> {
       ),
     );
   }
+
+   // 构建日期选择器
+  Widget _buildDatePicker(String label, DateTime? selectedDate, ValueChanged<DateTime?> onDateSelected) {
+    return Expanded(
+      child: InkWell(
+        onTap: () => _selectDate(context, selectedDate, onDateSelected),
+        child: InputDecorator(
+          decoration: InputDecoration(
+            labelText: label,
+            border: OutlineInputBorder(),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                selectedDate != null 
+                  ? '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}'
+                  : '选择日期',
+                style: TextStyle(fontSize: 14),
+              ),
+              Icon(Icons.calendar_today, size: 18),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 选择日期
+  Future<void> _selectDate(BuildContext context, DateTime? initialDate, ValueChanged<DateTime?> onDateSelected) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate ?? DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null && picked != initialDate) {
+      onDateSelected(picked);
+    }
+  }
+
+
 
   Widget _buildCheckbox(
     String label,
@@ -473,13 +466,29 @@ class _AllimageState extends State<Allimage> {
       ExportCategory = category['name'];
     }
 
-    // 使用复选框的值作为参数
+    // 转换日期为时间戳
+    int? startTime;
+    int? endTime;
+    
+    if (_startDate != null) {
+      startTime = _startDate!.millisecondsSinceEpoch;
+    }
+    
+    if (_endDate != null) {
+      // 将结束时间设置为当天的最后一刻
+      final endOfDay = DateTime(_endDate!.year, _endDate!.month, _endDate!.day, 23, 59, 59);
+      endTime = endOfDay.millisecondsSinceEpoch;
+    }
+
+    // 使用复选框的值和时间戳作为参数
     exportService = ExportService(
       context: context,
       category: ExportCategory,
       is_opinion: is_opinion,
       is_answer: is_answer,
       is_COT: is_COT,
+      startTime: startTime,
+      endTime: endTime,
     );
 
     setState(() => isExporting = true);
@@ -506,9 +515,10 @@ class _AllimageState extends State<Allimage> {
     return GestureDetector(
       onLongPress: () => {},
       onTap: () {
-        setState(() {
-          _selectedImageId = image.imageID;
-        });
+        // setState(() {
+        //   _selectedImageId = image.imageID;
+        // });
+        _openImageDetail(image);
       },
       child: Stack(
         children: [
@@ -742,7 +752,50 @@ class _AllimageState extends State<Allimage> {
       ),
     );
   }
+    // 处理图片更新回调
+  void _handleImageUpdated(ImageModel updatedImage) {
+    setState(() {
+      // 找到并更新图片列表中的对应图片
+      final index = _images.indexWhere(
+        (img) => img.imageID == updatedImage.imageID,
+      );
+      if (index != -1) {
+        _images[index] = updatedImage;
+      }
+    });
+  }
 
+  //处理图片删除
+  void _handleImageDeleted(int imageID) {
+    setState(() {
+      final index = _images.indexWhere((img) => img.imageID == imageID);
+      if (index != -1) {
+        _images.removeAt(index); // 通过索引删除元素
+      }
+    });
+    Navigator.pop(context);
+  }
+
+    // 打开图片详情弹窗
+  void _openImageDetail(ImageModel image) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      useSafeArea: true,
+      builder: (context) {
+        return Dialog(
+          insetPadding: const EdgeInsets.all(20),
+          child: ImageDetail(
+            image: image,
+            onImageUpdated: _handleImageUpdated,
+            onClose: () => Navigator.pop(context),
+            onImageDeleted: _handleImageDeleted,
+            // onImageOaUpdated: _handleImageQaUpadted,
+          ),
+        );
+      },
+    );
+  }
   Widget _buildCategoryDropdown() {
     return _buildLevelDropdown(
       value: _selectedCategoryId,
