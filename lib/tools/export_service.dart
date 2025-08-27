@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:mime/mime.dart';
 import 'package:path/path.dart' as path;
+import 'package:qa_imageprocess/model/answer_model.dart';
 import 'package:qa_imageprocess/model/image_model.dart';
 import 'package:qa_imageprocess/model/image_state.dart';
 import 'package:qa_imageprocess/model/question_model.dart';
@@ -23,7 +24,13 @@ class ExportService {
   ValueNotifier<double> progress = ValueNotifier<double>(0.0);
   ValueNotifier<String> status = ValueNotifier<String>('准备导出');
 
-  ExportService({required this.context, required this.category,this.is_opinion=true,this.is_answer=true,this.is_COT=true});
+  ExportService({
+    required this.context,
+    required this.category,
+    this.is_opinion = true,
+    this.is_answer = true,
+    this.is_COT = true,
+  });
 
   // 获取所有图片（分页）
   Future<List<ImageModel>> _fetchAllImages() async {
@@ -140,6 +147,37 @@ class ExportService {
           final typeDir = Directory(path.join(categoryDir.path, collectorType));
           if (!typeDir.existsSync()) typeDir.createSync(recursive: true);
 
+          // for (final image in typeGroups[collectorType]!) {
+          //   if (image.fileName == null || image.fileName!.isEmpty) continue;
+
+          //   // 下载图片
+          //   try {
+          //     status.value = '正在下载: ${image.fileName}';
+          //     final downloadResult = await _downloadImage(image, typeDir.path);
+          //     if (downloadResult == null) continue;
+
+          //     final imageFile = downloadResult['file'];
+          //     final imageSize = downloadResult['size'];
+          //     final question = image.questions!.first;
+          //     configData.add(
+          //       _buildConfigItem(
+          //         image,
+          //         question,
+          //         path.join(
+          //           category,
+          //           collectorType,
+          //           path.basename(imageFile.path),
+          //         ),
+          //         imageSize: imageSize, // 传递图片尺寸信息
+          //       ),
+          //     );
+          //   } catch (e) {
+          //     status.value = '图片下载失败: $e';
+          //   } finally {
+          //     processed++;
+          //     progress.value = 0.2 + (processed / totalImages * 0.8);
+          //   }
+          // }
           for (final image in typeGroups[collectorType]!) {
             if (image.fileName == null || image.fileName!.isEmpty) continue;
 
@@ -167,6 +205,21 @@ class ExportService {
                     imageSize: imageSize, // 传递图片尺寸信息
                   ),
                 );
+              } else {
+                
+                // 即使没有问题数据，也创建一个空的配置项
+                configData.add(
+                  _buildConfigItem(
+                    image,
+                    QuestionModel(questionID: -1, questionText: '', rightAnswer: AnswerModel(answerID: -1, answerText: ''), answers: []), // 创建一个空的问题对象
+                    path.join(
+                      category,
+                      collectorType,
+                      path.basename(imageFile.path),
+                    ),
+                    imageSize: imageSize,
+                  ),
+                );
               }
             } catch (e) {
               status.value = '图片下载失败: $e';
@@ -177,17 +230,17 @@ class ExportService {
           }
         }
 
-        // 保存配置文件
-        if (configData.isNotEmpty) {
-          try {
-            status.value = '正在保存配置文件: $category/config.json';
-            final configFile = File(path.join(categoryDir.path, 'config.json'));
-            // 使用格式化编码器 (缩进为2个空格)
-            final encoder = JsonEncoder.withIndent('  ');
-            await configFile.writeAsString(encoder.convert(configData));
-          } catch (e) {
-            status.value = '配置文件保存失败: $e';
-          }
+        try {
+          status.value = '正在保存配置文件: $category/config.json';
+          final configFile = File(path.join(categoryDir.path, 'config.json'));
+          // 使用格式化编码器 (缩进为2个空格)
+          final encoder = JsonEncoder.withIndent('  ');
+          // await configFile.writeAsString(encoder.convert(configData));
+          await configFile.writeAsString(
+            encoder.convert(configData.isNotEmpty ? configData : []),
+          );
+        } catch (e) {
+          status.value = '配置文件保存失败: $e';
         }
       }
 
@@ -200,7 +253,10 @@ class ExportService {
   }
 
   // 下载单个图片并获取尺寸信息
-  Future<Map<String, dynamic>?> _downloadImage(ImageModel image, String savePath) async {
+  Future<Map<String, dynamic>?> _downloadImage(
+    ImageModel image,
+    String savePath,
+  ) async {
     if (image.imageID <= 0) return null;
 
     try {
@@ -251,10 +307,7 @@ class ExportService {
         // 即使获取尺寸失败，仍然继续导出图片
       }
 
-      return {
-        'file': file,
-        'size': imageSize
-      };
+      return {'file': file, 'size': imageSize};
     } catch (e) {
       status.value = '图片下载错误: $e';
       return null;
@@ -262,12 +315,11 @@ class ExportService {
   }
 
   // 构建配置文件条目
-  // 修改_buildConfigItem方法中的路径拼接
   Map<String, dynamic> _buildConfigItem(
     ImageModel image,
     QuestionModel question,
     String imagePath, {
-    String imageSize = '' // 添加图片尺寸参数
+    String imageSize = '', // 添加图片尺寸参数
   }) {
     // 将路径中的反斜杠替换为正斜杠
     imagePath = imagePath.replaceAll('\\', '/');
@@ -277,26 +329,36 @@ class ExportService {
     if (question.answers != null && question.answers!.isNotEmpty) {
       for (int i = 0; i < question.answers!.length; i++) {
         final letter = String.fromCharCode(65 + i); // A, B, C...
-        optionsText += '$letter.${question.answers![i].answerText}\n';
+        final answerText = question.answers![i].answerText ?? '';
+        optionsText += '$letter.$answerText\n';
       }
       optionsText = optionsText.trim();
     }
 
+    // 安全获取各种可能为null的值
+    final fileName = image.fileName ?? '';
+    final textMd5 = fileName.isNotEmpty
+        ? fileName.replaceAll(path.extension(fileName), '')
+        : '';
+    final category = image.category ?? '';
+    final collectorType = image.collectorType ?? '';
+    final questionDirection = image.questionDirection ?? '';
+    final questionText = question.questionText ?? '';
+    final rightAnswerText = question.rightAnswer?.answerText ?? '';
+    final textCOT = question.textCOT ?? '';
+
     return {
       "image": imagePath, // 使用统一的正斜杠路径
-      "text_md5": image.fileName!.replaceAll(
-        path.extension(image.fileName!),
-        '',
-      ),
-      "text_image_domain": image.category,
-      "text_image_type": image.collectorType,
-      "text_image_size": imageSize, // 使用获取到的图片尺寸
-      "text_QA_diff": ImageState.getDifficulty(image.difficulty ?? -1),
-      "text_QA_direction": image.questionDirection,
-      "text_question": question.questionText,
+      "text_md5": textMd5,
+      "text_image_domain": category,
+      "text_image_type": collectorType,
+      "text_image_size": imageSize,
+      "text_QA_diff": ImageState.getDifficulty(image.difficulty ?? -1) ?? '',
+      "text_QA_direction": questionDirection,
+      "text_question": questionText,
       "text_opinion": is_opinion ? optionsText : '',
-      "text_answer": is_answer ? question.rightAnswer?.answerText ?? '':'',
-      "text_COT": is_COT ? question.textCOT :'',
+      "text_answer": is_answer ? rightAnswerText : '',
+      "text_COT": is_COT ? textCOT : '',
     };
   }
 
