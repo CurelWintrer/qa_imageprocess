@@ -22,14 +22,14 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage>
-    with SingleTickerProviderStateMixin,AutomaticKeepAliveClientMixin{
-    // 自动保存状态
+    with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
+  // 自动保存状态
   @override
   bool get wantKeepAlive => true;
 
   int _selectedIndex = 0;
 
-    // 使用PageStorageKey为每个页面保存独立状态
+  // 使用PageStorageKey为每个页面保存独立状态
   final List<PageStorageKey> _pageKeys = [
     PageStorageKey('page0'),
     PageStorageKey('page1'),
@@ -38,7 +38,7 @@ class _HomePageState extends State<HomePage>
     PageStorageKey('page4'),
     PageStorageKey('page5'),
     PageStorageKey('page6'),
-    PageStorageKey('page7')
+    PageStorageKey('page7'),
   ];
 
   // 用户信息
@@ -58,8 +58,8 @@ class _HomePageState extends State<HomePage>
   void initState() {
     super.initState();
     // 初始化用户信息和页面列表
-    _pageTitles=[];
-    _pages=[];
+    _pageTitles = [];
+    _pages = [];
     _initializeUserInfo();
     UpdateChecker.checkForUpdate(context);
   }
@@ -106,16 +106,19 @@ class _HomePageState extends State<HomePage>
   void _initializePages(bool isAdmin) {
     // 创建页面实例 - 使用GlobalKey保存状态
     final basePages = [
-      {'title': 'Work', 'page':WorkList(key: _pageKeys[0],)},
-      {'title':'质检','page':ReviewList(key: _pageKeys[1])},
-      {'title':'查重','page':GetRepeatedImage(key: _pageKeys[2],)}
+      {'title': 'Work', 'page': WorkList(key: _pageKeys[0])},
+      {'title': '质检', 'page': ReviewList(key: _pageKeys[1])},
+      {'title': '查重', 'page': GetRepeatedImage(key: _pageKeys[2])},
     ];
 
     // 只有管理员才添加管理页面
     if (isAdmin) {
-      basePages.add({'title': '账号管理', 'page': ManagementPage(key: _pageKeys[3])});
-      basePages.add({'title':'任务管理','page':WorkManager(key: _pageKeys[4])});
-      basePages.add({'title':'总览','page':Allimage(key: _pageKeys[5],)});
+      basePages.add({
+        'title': '账号管理',
+        'page': ManagementPage(key: _pageKeys[3]),
+      });
+      basePages.add({'title': '任务管理', 'page': WorkManager(key: _pageKeys[4])});
+      basePages.add({'title': '总览', 'page': Allimage(key: _pageKeys[5])});
     }
 
     // 更新页面和标题列表
@@ -133,135 +136,106 @@ class _HomePageState extends State<HomePage>
   }
 
   void _toggleUserMenu() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
+    showDialog(
+      context: context,
+      builder: (context) {
+        bool showReset = false;
+        String currentPwd = '';
+        String newPwd = '';
 
-    if (token == null) {
-      _showMessage('未登录');
-      return;
-    }
-
-    try {
-      // 刷新并获取当前用户信息
-      final response = await http.post(
-        Uri.parse('${UserSession().baseUrl}/api/user/refresh-token'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> user = jsonDecode(response.body)['user'];
-
-        showDialog(
-          context: context,
-          builder: (context) {
-            bool showReset = false;
-            String currentPwd = '';
-            String newPwd = '';
-
-            return StatefulBuilder(
-              builder: (context, setState) {
-                return AlertDialog(
-                  title: const Text('我的用户信息'),
-                  content: SizedBox(
-                    width: double.minPositive,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // 用户基本信息
-                        ListTile(
-                          leading: const Icon(Icons.account_circle),
-                          title: Text(user['name'] ?? '未知'),
-                          subtitle: Text(
-                            '${user['email']} · 角色: ${user['role']}',
-                          ),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('我的用户信息'),
+              content: SizedBox(
+                width: double.minPositive,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 用户基本信息
+                    ListTile(
+                      leading: const Icon(Icons.account_circle),
+                      title: Text(UserSession().name ?? '未知'),
+                      subtitle: Text('${UserSession().email}'),
+                    ),
+                    const SizedBox(height: 16),
+                    // 初始只显示“重置密码”按钮
+                    if (!showReset)
+                      ElevatedButton(
+                        onPressed: () => setState(() => showReset = true),
+                        child: const Text('重置密码'),
+                      ),
+                    // 展开密码重置表单
+                    if (showReset) ...[
+                      TextField(
+                        obscureText: true,
+                        decoration: const InputDecoration(
+                          labelText: '当前密码',
+                          border: OutlineInputBorder(),
                         ),
-                        const SizedBox(height: 16),
-                        // 初始只显示“重置密码”按钮
-                        if (!showReset)
-                          ElevatedButton(
-                            onPressed: () => setState(() => showReset = true),
-                            child: const Text('重置密码'),
-                          ),
-                        // 展开密码重置表单
-                        if (showReset) ...[
-                          TextField(
-                            obscureText: true,
-                            decoration: const InputDecoration(
-                              labelText: '当前密码',
-                              border: OutlineInputBorder(),
-                            ),
-                            onChanged: (value) => currentPwd = value,
-                          ),
-                          const SizedBox(height: 8),
-                          TextField(
-                            obscureText: true,
-                            decoration: const InputDecoration(
-                              labelText: '新密码',
-                              border: OutlineInputBorder(),
-                            ),
-                            onChanged: (value) => newPwd = value,
-                          ),
-                          const SizedBox(height: 16),
-                          ElevatedButton(
-                            onPressed: () async {
-                              final prefs =
-                                  await SharedPreferences.getInstance();
-                              final token = prefs.getString('token');
-                              if (token == null) {
-                                _showMessage('未登录');
-                                return;
-                              }
-                              try {
-                                final resp = await http.post(
-                                  Uri.parse(
-                                    '${UserSession().baseUrl}/api/user/reset-password',
-                                  ),
-                                  headers: {
-                                    'Authorization': 'Bearer $token',
-                                    'Content-Type': 'application/json',
-                                  },
-                                  body: jsonEncode({
-                                    'currentPassword': currentPwd,
-                                    'newPassword': newPwd,
-                                  }),
-                                );
-                                if (resp.statusCode == 200) {
-                                  _showMessage('密码重置成功');
-                                  Navigator.of(context).pop();
-                                } else {
-                                  _showMessage('重置失败：${resp.statusCode}');
-                                }
-                              } catch (e) {
-                                _showMessage('网络错误：$e');
-                              }
-                            },
-                            child: const Text('提交'),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('关闭'),
-                    ),
+                        onChanged: (value) => currentPwd = value,
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        obscureText: true,
+                        decoration: const InputDecoration(
+                          labelText: '新密码',
+                          border: OutlineInputBorder(),
+                        ),
+                        onChanged: (value) => newPwd = value,
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () async {
+                          final prefs = await SharedPreferences.getInstance();
+                          final token = prefs.getString('token');
+                          if (token == null) {
+                            _showMessage('未登录');
+                            return;
+                          }
+                          try {
+                            final resp = await http.put(
+                              Uri.parse(
+                                '${UserSession().baseUrl}/api/user/change-password',
+                              ),
+                              headers: {
+                                'Authorization': 'Bearer $token',
+                                'Content-Type': 'application/json',
+                              },
+                              body: jsonEncode({
+                                'oldPassword': currentPwd,
+                                'newPassword': newPwd,
+                              }),
+                            );
+                            //  print(resp.body);
+                            if (resp.statusCode == 200) {
+                              _showMessage('密码重置成功');
+                              Navigator.of(context).pop();
+                            } else {
+                              _showMessage('重置失败：${resp.body}');
+                            }
+                          } catch (e) {
+                            _showMessage('网络错误：$e');
+                          }
+                        },
+                        child: const Text('提交'),
+                      ),
+                    ],
                   ],
-                );
-              },
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('关闭'),
+                ),
+              ],
             );
           },
         );
-      } else {
-        _showMessage('获取用户信息失败: ${response.statusCode}');
-      }
-    } catch (e) {
-      _showMessage('网络错误：$e');
-    }
+      },
+    );
   }
 
   void _toggleSettings() {
@@ -291,7 +265,7 @@ class _HomePageState extends State<HomePage>
             pageTitles: _pageTitles,
             selectedIndex: _selectedIndex,
             onItemSelected: (index) => setState(() => _selectedIndex = index),
-            onToggleUserMenu: ()=>{},
+            onToggleUserMenu: () => {_toggleUserMenu()},
             onToggleSettings: _toggleSettings,
             onLogout: logout,
             getIconForIndex: _getIconForIndex,
@@ -313,10 +287,7 @@ class _HomePageState extends State<HomePage>
                 // ),
                 // const Divider(height: 1),
                 Expanded(
-                  child: IndexedStack(
-                    index: _selectedIndex,
-                    children: _pages,
-                  ),
+                  child: IndexedStack(index: _selectedIndex, children: _pages),
                 ),
               ],
             ),
