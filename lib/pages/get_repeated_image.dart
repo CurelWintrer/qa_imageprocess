@@ -179,11 +179,45 @@ class _GetRepeatedImageState extends State<GetRepeatedImage> {
             image: image,
             onImageUpdated: _handleImageUpdated,
             onClose: () => Navigator.pop(context),
-            onImageDeleted: _handleImageDeleted,
+            onDeprecateImage: _handelDeprecateImage,
           ),
         );
       },
     );
+  }
+
+  
+  void _handelDeprecateImage(int imageID) {
+    setState(() {
+    // 遍历所有重复分组
+    for (var i = 0; i < duplicateGroups.length; i++) {
+      final group = duplicateGroups[i];
+      
+      // 在当前分组中查找需要删除的图片
+      final index = group.images.indexWhere((img) => img.imageID == imageID);
+      if (index != -1) {
+        // 从分组中移除图片
+        group.images.removeAt(index);
+        
+        // 更新分组的计数
+        final updatedGroup = DuplicateGroupModel(
+          fileName: group.fileName,
+          count: group.count - 1,
+          images: group.images,
+        );
+        
+        // 替换原分组
+        duplicateGroups[i] = updatedGroup;
+        
+        // 如果分组中图片数量少于2，移除整个分组（不再构成重复）
+        if (updatedGroup.images.length < 2) {
+          duplicateGroups.removeAt(i);
+        }
+        
+        break;
+      }
+    }
+  });
   }
 
 // 处理图片更新回调
@@ -570,5 +604,6 @@ void _handleImageDeleted(int imageID) {
             ),
     );
   }
+
 
 }

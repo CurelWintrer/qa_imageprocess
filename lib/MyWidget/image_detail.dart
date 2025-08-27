@@ -19,6 +19,7 @@ import 'package:qa_imageprocess/user_session.dart';
 typedef ImageUpdateCallback = void Function(ImageModel updatedImage);
 typedef ImageDeleteCallback = void Function(int imageID);
 typedef ImageAiQaCallback = void Function(ImageModel updatedImage);
+typedef DeprecateImageCallBack=void Function(int imageID);
 
 class ImageDetail extends StatefulWidget {
   final ImageModel image;
@@ -26,6 +27,7 @@ class ImageDetail extends StatefulWidget {
   final ImageUpdateCallback onImageUpdated;
   final ImageDeleteCallback? onImageDeleted;
   final ImageAiQaCallback? onImageOaUpdated;
+  final DeprecateImageCallBack? onDeprecateImage;
 
   const ImageDetail({
     super.key,
@@ -34,6 +36,7 @@ class ImageDetail extends StatefulWidget {
     required this.onImageUpdated,
     this.onImageDeleted,
     this.onImageOaUpdated,
+    this.onDeprecateImage,
   });
 
   @override
@@ -896,6 +899,36 @@ class _ImageDetailState extends State<ImageDetail> {
     }
   }
 
+  //删除图片
+  Future<void> _deprecateImage(int imageID) async {
+    try {
+      final response = await http.put(
+        Uri.parse('${UserSession().baseUrl}/api/image/$imageID/deprecate'),
+        headers: {
+          'Authorization': 'Bearer ${UserSession().token ?? ''}',
+          'Content-Type': 'application/json',
+        },
+      );
+      print(response.body);
+      if (response.statusCode == 200) {
+        if (mounted) {
+          widget.onDeprecateImage!(imageID);
+        }
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('移除成功')));
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('移除失败')));
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('移除失败')));
+    }
+  }
+
   // 构建信息列（右侧/下方内容）
   Widget _buildInfoColumn() {
     return SingleChildScrollView(
@@ -937,12 +970,16 @@ class _ImageDetailState extends State<ImageDetail> {
           // 删除按钮和分辨率显示
           Row(
             children: [
-              IconButton(
-                onPressed: () => {_deleteImage(currentImage.imageID)},
-                icon: Icon(Icons.delete),
-                tooltip: '删除',
-                hoverColor: Colors.redAccent,
-              ),
+              if (widget.onImageDeleted != null)
+                IconButton(
+                  onPressed: () => {_deleteImage(currentImage.imageID)},
+                  icon: Icon(Icons.delete),
+                  tooltip: '删除',
+                  hoverColor: Colors.redAccent,
+                ),
+              SizedBox(width: 10),
+              if(widget.onDeprecateImage!=null)
+              IconButton(onPressed: ()=>{_deprecateImage(currentImage.imageID)}, icon: Icon(Icons.remove),tooltip: '移除图片'),
               SizedBox(width: 10),
               IconButton(
                 onPressed: () => {
@@ -1000,14 +1037,14 @@ class _ImageDetailState extends State<ImageDetail> {
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         // AI-QA按钮
-                        if(widget.onImageOaUpdated!=null)
-                        IconButton(
-                          // onPressed: _isProcessing ? null : _executeAITask,
-                          onPressed: () =>
-                              widget.onImageOaUpdated!(currentImage),
-                          icon: const Icon(Icons.auto_awesome),
-                          tooltip: 'AI-QA',
-                        ),
+                        if (widget.onImageOaUpdated != null)
+                          IconButton(
+                            // onPressed: _isProcessing ? null : _executeAITask,
+                            onPressed: () =>
+                                widget.onImageOaUpdated!(currentImage),
+                            icon: const Icon(Icons.auto_awesome),
+                            tooltip: 'AI-QA',
+                          ),
                         const SizedBox(width: 20),
 
                         // 编辑按钮
