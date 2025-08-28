@@ -904,64 +904,61 @@ class _AllimageState extends State<Allimage> {
   //     ),
   //   );
   // }
+
   // 普通下拉框 - 显式使用 String?
-Widget _buildLevelDropdown({
-  required String? value,
-  required List<String> options,
-  required String hint,
-  required Map<String, String> displayValues,
-  bool enabled = true,
-  ValueChanged<String?>? onChanged,
-}) {
-  // 辅助函数：提取中文括号内的内容
-  String extractChineseBracketContent(String text) {
-    // 使用正则表达式匹配中文括号及其内容
-    RegExp exp = RegExp(r'（([^）]+)）');
-    Match? match = exp.firstMatch(text);
-    if (match != null && match.groupCount >= 1) {
-      return match.group(1)!; // 返回括号内的内容
+  Widget _buildLevelDropdown({
+    required String? value,
+    required List<String> options,
+    required String hint,
+    required Map<String, String> displayValues,
+    bool enabled = true,
+    ValueChanged<String?>? onChanged,
+  }) {
+    // 提取中文括号内的内容
+    String extractChineseBracketContent(String text) {
+      // 使用正则表达式匹配中文括号及其内容
+      RegExp exp = RegExp(r'（([^）]+)）');
+      Match? match = exp.firstMatch(text);
+      if (match != null && match.groupCount >= 1) {
+        return match.group(1)!; 
+      }
+      return text; // 如果没有匹配到中文括号，返回原文本
     }
-    return text; // 如果没有匹配到中文括号，返回原文本
-  }
 
-  // 修复：直接构建菜单项列表
-  final items = [
-    // 添加空选项
-    DropdownMenuItem<String?>(
-      value: null,
-      child: Text('未选择', style: TextStyle(color: Colors.grey)),
-    ),
-    // 添加其他选项
-    ...options.map((id) {
-      String displayText = displayValues[id] ?? '未知';
-      // 提取中文括号内的内容
-      displayText = extractChineseBracketContent(displayText);
-      
-      return DropdownMenuItem<String?>(
-        value: id,
-        child: Text(
-          displayText,
-          overflow: TextOverflow.ellipsis,
-        ),
-      );
-    }).toList(),
-  ];
-
-  return SizedBox(
-    width: 180,
-    child: DropdownButtonFormField<String?>(
-      value: value,
-      isExpanded: true,
-      decoration: InputDecoration(
-        labelText: hint,
-        border: const OutlineInputBorder(),
-        enabled: enabled,
+    final items = [
+      // 添加空选项
+      DropdownMenuItem<String?>(
+        value: null,
+        child: Text('未选择', style: TextStyle(color: Colors.grey)),
       ),
-      items: items,
-      onChanged: enabled ? onChanged : null,
-    ),
-  );
-}
+      // 添加其他选项
+      ...options.map((id) {
+        String displayText = displayValues[id] ?? '未知';
+        // 提取中文括号内的内容
+        displayText = extractChineseBracketContent(displayText);
+
+        return DropdownMenuItem<String?>(
+          value: id,
+          child: Text(displayText, overflow: TextOverflow.ellipsis),
+        );
+      }).toList(),
+    ];
+
+    return SizedBox(
+      width: 180,
+      child: DropdownButtonFormField<String?>(
+        value: value,
+        isExpanded: true,
+        decoration: InputDecoration(
+          labelText: hint,
+          border: const OutlineInputBorder(),
+          enabled: enabled,
+        ),
+        items: items,
+        onChanged: enabled ? onChanged : null,
+      ),
+    );
+  }
 
   // 通用API请求方法
   Future<List<dynamic>> _fetchData(String endpoint) async {
