@@ -4,6 +4,7 @@ import 'package:qa_imageprocess/navi/app_navigation_drawer.dart';
 import 'package:qa_imageprocess/pages/allimage.dart';
 import 'package:qa_imageprocess/pages/get_repeated_image.dart';
 import 'package:qa_imageprocess/pages/management_page.dart';
+import 'package:qa_imageprocess/pages/monitoring.dart';
 import 'package:qa_imageprocess/pages/review_list.dart';
 import 'package:qa_imageprocess/pages/work_list.dart';
 import 'package:qa_imageprocess/pages/work_manager.dart';
@@ -119,6 +120,7 @@ class _HomePageState extends State<HomePage>
       });
       basePages.add({'title': '任务管理', 'page': WorkManager(key: _pageKeys[4])});
       basePages.add({'title': '总览', 'page': Allimage(key: _pageKeys[5])});
+      basePages.add({'title':'统计','page':Monitoring(key: _pageKeys[6])});
     }
 
     // 更新页面和标题列表
@@ -313,7 +315,7 @@ class _HomePageState extends State<HomePage>
       case 5:
         return Icons.view_agenda;
       case 6:
-        return Icons.download;
+        return Icons.data_array;
       case 7:
         return Icons.admin_panel_settings;
       default:
