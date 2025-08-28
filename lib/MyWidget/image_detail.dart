@@ -8,6 +8,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image/image.dart' as img;
+import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:qa_imageprocess/model/image_model.dart';
 import 'package:qa_imageprocess/model/image_state.dart';
@@ -571,65 +572,7 @@ class _ImageDetailState extends State<ImageDetail> {
     );
   }
 
-  // 执行AI操作（耗时任务）
-  // Future<void> _executeAITask() async {
-  //   // 显示加载弹窗
-  //   showDialog(
-  //     context: context,
-  //     barrierDismissible: false,
-  //     builder: (context) => const Center(child: CircularProgressIndicator()),
-  //   );
 
-  //   setState(() => _isProcessing = true);
-
-  //   try {
-  //     // 1. 调用AI服务
-  //     final qa = await AiService.getQA(currentImage);
-  //     if (qa == null) throw Exception('AI服务返回空数据');
-
-  //     debugPrint('AI生成结果: ${qa.toString()}');
-
-  //     // 2. 更新到后端API
-  //     final updatedImage = await _updateImageQA(
-  //       imageId: currentImage.imageID,
-  //       questionText: qa.question,
-  //       answers: qa.options,
-  //       rightAnswerIndex: qa.correctAnswer,
-  //       explanation: qa.explanation,
-  //       textCOT: qa.textCOT,
-  //     );
-
-  //     if (updatedImage == null) throw Exception('图片更新失败');
-
-  //     // 3. 更新UI状态
-  //     if (mounted) {
-  //       setState(() {
-  //         currentImage = updatedImage;
-  //         _initEditControllers();
-  //         _isEditing = false;
-  //       });
-  //       widget.onImageUpdated(updatedImage);
-  //     }
-
-  //     // 4. 显示成功提示
-  //     ScaffoldMessenger.of(
-  //       context,
-  //     ).showSnackBar(const SnackBar(content: Text('AI处理完成')));
-  //   } catch (e, stackTrace) {
-  //     debugPrint('AI处理错误: $e\n$stackTrace');
-  //     if (mounted) {
-  //       ScaffoldMessenger.of(
-  //         context,
-  //       ).showSnackBar(SnackBar(content: Text('处理失败: ${e.toString()}')));
-  //     }
-  //   } finally {
-  //     // 关闭加载弹窗
-  //     if (mounted) {
-  //       Navigator.of(context, rootNavigator: true).pop();
-  //       setState(() => _isProcessing = false);
-  //     }
-  //   }
-  // }
 
   // 图片上传方法
   Future<void> _uploadImage() async {
@@ -960,8 +903,8 @@ class _ImageDetailState extends State<ImageDetail> {
                     '状态',
                     ImageState.getStateText(currentImage.state),
                   ),
-                  _buildInfoItem('创建日期', currentImage.created_at),
-                  _buildInfoItem('更新日期', currentImage.updated_at),
+                  _buildInfoItem('创建日期', DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.parse(currentImage.created_at))),
+                  _buildInfoItem('更新日期', DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.parse(currentImage.updated_at))),
                 ],
               ),
             ),

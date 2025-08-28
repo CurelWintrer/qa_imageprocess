@@ -23,7 +23,7 @@ class ExportService {
   bool is_COT = true;
 
   final String? startTime; // 新增：开始时间戳
-  final String? endTime;   // 新增：结束时间戳
+  final String? endTime; // 新增：结束时间戳
   ValueNotifier<double> progress = ValueNotifier<double>(0.0);
   ValueNotifier<String> status = ValueNotifier<String>('准备导出');
 
@@ -46,32 +46,39 @@ class ExportService {
 
     do {
       status.value = '正在获取图片 (第 $currentPage 页)...';
-      
-       final Map<String, String> queryParams = {
-      'page': currentPage.toString(),
-      'pageSize': 60.toString(),
-    };
 
+      final Map<String, String> queryParams = {
+        'page': currentPage.toString(),
+        'pageSize': 60.toString(),
+      };
 
-    if(startTime!=null){
-      queryParams['startTime']=startTime!;
-    }
-    if(endTime!=null){
-      queryParams['endTime']=endTime!;
-    }
+      // 添加可选参数
+      // if (_selectedCategoryId != null) {
+      //   final category = _categories.firstWhere(
+      //     (c) => c['id'] == _selectedCategoryId,
+      //     orElse: () => {'name': ''},
+      //   );
+      queryParams['category'] = category;
+      // }
 
-        // 构建URL
-    final uri = Uri.parse(
-      '${UserSession().baseUrl}/api/image',
-    ).replace(queryParameters: queryParams);
+      if (startTime != null) {
+        queryParams['startTime'] = startTime!;
+      }
+      if (endTime != null) {
+        queryParams['endTime'] = endTime!;
+      }
 
-    print('$startTime   $endTime');
+      // 构建URL
+      final uri = Uri.parse(
+        '${UserSession().baseUrl}/api/image',
+      ).replace(queryParameters: queryParams);
+
+      print('$startTime   $endTime');
       // 构建基础URL
       // String url = '${UserSession().baseUrl}/api/image?page=$currentPage&pageSize=60&category=$category&startTime=$startTime&endTime=$endTime';
       // print(startTime);
       // print(endTime);
 
-      
       // final uri = Uri.parse(url);
 
       try {
@@ -236,12 +243,16 @@ class ExportService {
                   ),
                 );
               } else {
-                
                 // 即使没有问题数据，也创建一个空的配置项
                 configData.add(
                   _buildConfigItem(
                     image,
-                    QuestionModel(questionID: -1, questionText: '', rightAnswer: AnswerModel(answerID: -1, answerText: ''), answers: []), // 创建一个空的问题对象
+                    QuestionModel(
+                      questionID: -1,
+                      questionText: '',
+                      rightAnswer: AnswerModel(answerID: -1, answerText: ''),
+                      answers: [],
+                    ), // 创建一个空的问题对象
                     path.join(
                       category,
                       collectorType,

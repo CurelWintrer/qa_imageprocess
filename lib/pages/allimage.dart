@@ -331,21 +331,6 @@ class _AllimageState extends State<Allimage> {
               }),
             ],
           );
-
-          // 添加时间选择器部分
-          // final datePickerSection = Row(
-          //   mainAxisSize: MainAxisSize.min,
-          //   children: [
-          //     _buildDatePicker('开始时间', _startDate, (date) {
-          //       setState(() => _startDate = date);
-          //     }),
-          //     const SizedBox(width: 8),
-          //     _buildDatePicker('结束时间', _endDate, (date) {
-          //       setState(() => _endDate = date);
-          //     }),
-          //   ],
-          // );
-
           final children = [
             _buildCategoryDropdown(),
             _buildCollectorTypeDropdown(),
@@ -383,28 +368,9 @@ class _AllimageState extends State<Allimage> {
               ),
             ),
           ];
-
-          // if (isWideScreen) {
-          //   return Row(
-          //     children: children
-          //         .map(
-          //           (child) => Expanded(
-          //             flex: 1,
-          //             child: Padding(
-          //               padding: const EdgeInsets.symmetric(horizontal: 8.0),
-          //               child: child,
-          //             ),
-          //           ),
-          //         )
-          //         .toList(),
-          //   );
-          //} else {
-          // 窄屏时复选框单独一行
           return Column(
             children: [
               Row(children: [Expanded(child: checkboxSection)]),
-              // const SizedBox(height: 16),
-              // Row(children: [Expanded(child: datePickerSection)]),
               const SizedBox(height: 16),
               Wrap(spacing: 16, runSpacing: 16, children: children),
             ],

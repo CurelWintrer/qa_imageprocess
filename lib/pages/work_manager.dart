@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 import 'package:qa_imageprocess/model/user.dart';
 import 'package:qa_imageprocess/model/work_model.dart';
 import 'package:qa_imageprocess/user_session.dart';
@@ -648,6 +649,14 @@ class _WorkManagerState extends State<WorkManager> {
           ],
         ),
         const SizedBox(height: 8),
+        Row(
+          children: [
+            Icon(Icons.time_to_leave,size: 16,color: Colors.grey[600]),
+            const SizedBox(width: 4),
+            Text('创建时间：${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.parse(work.created_at))}')
+          ],
+        ),
+        SizedBox(height: 4),
         Row(
           children: [
             Expanded(

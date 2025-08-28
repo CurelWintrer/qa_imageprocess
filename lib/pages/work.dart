@@ -480,7 +480,7 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
           print('文件 $fileName 上传失败: ${responseBody}');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('已完成采集，不可上传图片'),
+              content: Text('${jsonDecode(responseBody)['message']}'),
             ),
           );
         }

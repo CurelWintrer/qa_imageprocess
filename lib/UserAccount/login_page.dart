@@ -86,6 +86,7 @@ class _LoginPageState extends State<LoginPage>
       setState(() {
         _isLoading = false;
       });
+      print(response.body);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
