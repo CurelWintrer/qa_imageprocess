@@ -57,6 +57,8 @@ class _AllimageState extends State<Allimage> {
   DateTime? _startDate;
   DateTime? _endDate;
 
+  int _totalImageCount = 0;
+
   @override
   void initState() {
     // TODO: implement initState
@@ -229,11 +231,11 @@ class _AllimageState extends State<Allimage> {
     if (_selectedDifficulty != null) {
       queryParams['difficulty'] = _selectedDifficulty.toString();
     }
-    if(_startDate!=null){
-      queryParams['startTime']=_startDate!.millisecondsSinceEpoch.toString();
+    if (_startDate != null) {
+      queryParams['startTime'] = _startDate!.millisecondsSinceEpoch.toString();
     }
-    if(_endDate!=null){
-      queryParams['endTime']=_endDate!.millisecondsSinceEpoch.toString();
+    if (_endDate != null) {
+      queryParams['endTime'] = _endDate!.millisecondsSinceEpoch.toString();
     }
     print('$_startDate    $_endDate');
 
@@ -257,7 +259,7 @@ class _AllimageState extends State<Allimage> {
 
         setState(() {
           _isLoading = false;
-
+          _totalImageCount = pagination['total'];
           if (_currentPage == 1) {
             _images = imageData.map((img) => ImageModel.fromJson(img)).toList();
           } else {
@@ -282,7 +284,6 @@ class _AllimageState extends State<Allimage> {
     }
   }
 
-
   Widget _buildTitleSelector() {
     return Container(
       padding: const EdgeInsets.all(16.0),
@@ -299,7 +300,6 @@ class _AllimageState extends State<Allimage> {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-
           // 添加复选框部分
           final checkboxSection = Row(
             mainAxisSize: MainAxisSize.min,
@@ -313,7 +313,16 @@ class _AllimageState extends State<Allimage> {
               _buildCheckbox('COT', is_COT, (value) {
                 setState(() => is_COT = value!);
               }),
-                            _buildDatePicker('开始时间', _startDate, (date) {
+              SizedBox(width: 16),
+              Container(
+                decoration: BoxDecoration(color: Colors.yellowAccent),
+                child: Text(
+                  '当前数量：$_totalImageCount',
+                  style: TextStyle(fontSize: 16),
+                ),
+              ),
+              SizedBox(width: 16),
+              _buildDatePicker('开始时间', _startDate, (date) {
                 setState(() => _startDate = date);
               }),
               const SizedBox(width: 8),
@@ -323,7 +332,7 @@ class _AllimageState extends State<Allimage> {
             ],
           );
 
-                    // 添加时间选择器部分
+          // 添加时间选择器部分
           // final datePickerSection = Row(
           //   mainAxisSize: MainAxisSize.min,
           //   children: [
@@ -390,24 +399,28 @@ class _AllimageState extends State<Allimage> {
           //         .toList(),
           //   );
           //} else {
-            // 窄屏时复选框单独一行
-            return Column(
-              children: [
-                Row(children: [Expanded(child: checkboxSection)]),
-                // const SizedBox(height: 16),
-                // Row(children: [Expanded(child: datePickerSection)]),
-                const SizedBox(height: 16),
-                Wrap(spacing: 16, runSpacing: 16, children: children),
-              ],
-            );
+          // 窄屏时复选框单独一行
+          return Column(
+            children: [
+              Row(children: [Expanded(child: checkboxSection)]),
+              // const SizedBox(height: 16),
+              // Row(children: [Expanded(child: datePickerSection)]),
+              const SizedBox(height: 16),
+              Wrap(spacing: 16, runSpacing: 16, children: children),
+            ],
+          );
           //}
         },
       ),
     );
   }
 
-   // 构建日期选择器
-  Widget _buildDatePicker(String label, DateTime? selectedDate, ValueChanged<DateTime?> onDateSelected) {
+  // 构建日期选择器
+  Widget _buildDatePicker(
+    String label,
+    DateTime? selectedDate,
+    ValueChanged<DateTime?> onDateSelected,
+  ) {
     return Expanded(
       child: InkWell(
         onTap: () => _selectDate(context, selectedDate, onDateSelected),
@@ -420,9 +433,9 @@ class _AllimageState extends State<Allimage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                selectedDate != null 
-                  ? '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}'
-                  : '选择日期',
+                selectedDate != null
+                    ? '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}'
+                    : '选择日期',
                 style: TextStyle(fontSize: 14),
               ),
               Icon(Icons.calendar_today, size: 18),
@@ -434,7 +447,11 @@ class _AllimageState extends State<Allimage> {
   }
 
   // 选择日期
-  Future<void> _selectDate(BuildContext context, DateTime? initialDate, ValueChanged<DateTime?> onDateSelected) async {
+  Future<void> _selectDate(
+    BuildContext context,
+    DateTime? initialDate,
+    ValueChanged<DateTime?> onDateSelected,
+  ) async {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: initialDate ?? DateTime.now(),
@@ -445,8 +462,6 @@ class _AllimageState extends State<Allimage> {
       onDateSelected(picked);
     }
   }
-
-
 
   Widget _buildCheckbox(
     String label,
@@ -472,8 +487,6 @@ class _AllimageState extends State<Allimage> {
       );
       ExportCategory = category['name'];
     }
-
-
 
     // 使用复选框的值和时间戳作为参数
     exportService = ExportService(
@@ -747,7 +760,8 @@ class _AllimageState extends State<Allimage> {
       ),
     );
   }
-    // 处理图片更新回调
+
+  // 处理图片更新回调
   void _handleImageUpdated(ImageModel updatedImage) {
     setState(() {
       // 找到并更新图片列表中的对应图片
@@ -771,7 +785,7 @@ class _AllimageState extends State<Allimage> {
     Navigator.pop(context);
   }
 
-    // 打开图片详情弹窗
+  // 打开图片详情弹窗
   void _openImageDetail(ImageModel image) {
     showDialog(
       context: context,
@@ -791,6 +805,7 @@ class _AllimageState extends State<Allimage> {
       },
     );
   }
+
   Widget _buildCategoryDropdown() {
     return _buildLevelDropdown(
       value: _selectedCategoryId,
@@ -847,48 +862,106 @@ class _AllimageState extends State<Allimage> {
   }
 
   // 普通下拉框 - 显式使用 String?
-  Widget _buildLevelDropdown({
-    required String? value,
-    required List<String> options,
-    required String hint,
-    required Map<String, String> displayValues,
-    bool enabled = true,
-    ValueChanged<String?>? onChanged,
-  }) {
-    // 修复：直接构建菜单项列表
-    final items = [
-      // 添加空选项
-      DropdownMenuItem<String?>(
-        value: null,
-        child: Text('未选择', style: TextStyle(color: Colors.grey)),
-      ),
-      // 添加其他选项
-      ...options.map((id) {
-        return DropdownMenuItem<String?>(
-          value: id,
-          child: Text(
-            displayValues[id] ?? '未知',
-            overflow: TextOverflow.ellipsis,
-          ),
-        );
-      }).toList(),
-    ];
+  // Widget _buildLevelDropdown({
+  //   required String? value,
+  //   required List<String> options,
+  //   required String hint,
+  //   required Map<String, String> displayValues,
+  //   bool enabled = true,
+  //   ValueChanged<String?>? onChanged,
+  // }) {
+  //   // 修复：直接构建菜单项列表
+  //   final items = [
+  //     // 添加空选项
+  //     DropdownMenuItem<String?>(
+  //       value: null,
+  //       child: Text('未选择', style: TextStyle(color: Colors.grey)),
+  //     ),
+  //     // 添加其他选项
+  //     ...options.map((id) {
+  //       return DropdownMenuItem<String?>(
+  //         value: id,
+  //         child: Text(
+  //           displayValues[id] ?? '未知',
+  //           overflow: TextOverflow.ellipsis,
+  //         ),
+  //       );
+  //     }).toList(),
+  //   ];
 
-    return SizedBox(
-      width: 180,
-      child: DropdownButtonFormField<String?>(
-        value: value,
-        isExpanded: true,
-        decoration: InputDecoration(
-          labelText: hint,
-          border: const OutlineInputBorder(),
-          enabled: enabled,
-        ),
-        items: items,
-        onChanged: enabled ? onChanged : null,
-      ),
-    );
+  //   return SizedBox(
+  //     width: 180,
+  //     child: DropdownButtonFormField<String?>(
+  //       value: value,
+  //       isExpanded: true,
+  //       decoration: InputDecoration(
+  //         labelText: hint,
+  //         border: const OutlineInputBorder(),
+  //         enabled: enabled,
+  //       ),
+  //       items: items,
+  //       onChanged: enabled ? onChanged : null,
+  //     ),
+  //   );
+  // }
+  // 普通下拉框 - 显式使用 String?
+Widget _buildLevelDropdown({
+  required String? value,
+  required List<String> options,
+  required String hint,
+  required Map<String, String> displayValues,
+  bool enabled = true,
+  ValueChanged<String?>? onChanged,
+}) {
+  // 辅助函数：提取中文括号内的内容
+  String extractChineseBracketContent(String text) {
+    // 使用正则表达式匹配中文括号及其内容
+    RegExp exp = RegExp(r'（([^）]+)）');
+    Match? match = exp.firstMatch(text);
+    if (match != null && match.groupCount >= 1) {
+      return match.group(1)!; // 返回括号内的内容
+    }
+    return text; // 如果没有匹配到中文括号，返回原文本
   }
+
+  // 修复：直接构建菜单项列表
+  final items = [
+    // 添加空选项
+    DropdownMenuItem<String?>(
+      value: null,
+      child: Text('未选择', style: TextStyle(color: Colors.grey)),
+    ),
+    // 添加其他选项
+    ...options.map((id) {
+      String displayText = displayValues[id] ?? '未知';
+      // 提取中文括号内的内容
+      displayText = extractChineseBracketContent(displayText);
+      
+      return DropdownMenuItem<String?>(
+        value: id,
+        child: Text(
+          displayText,
+          overflow: TextOverflow.ellipsis,
+        ),
+      );
+    }).toList(),
+  ];
+
+  return SizedBox(
+    width: 180,
+    child: DropdownButtonFormField<String?>(
+      value: value,
+      isExpanded: true,
+      decoration: InputDecoration(
+        labelText: hint,
+        border: const OutlineInputBorder(),
+        enabled: enabled,
+      ),
+      items: items,
+      onChanged: enabled ? onChanged : null,
+    ),
+  );
+}
 
   // 通用API请求方法
   Future<List<dynamic>> _fetchData(String endpoint) async {

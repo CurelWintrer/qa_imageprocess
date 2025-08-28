@@ -237,6 +237,49 @@ class _WorkManagerState extends State<WorkManager> {
   }
 
   // 普通下拉框 - 显式使用 String?
+  // Widget _buildLevelDropdown({
+  //   required String? value,
+  //   required List<String> options,
+  //   required String hint,
+  //   required Map<String, String> displayValues,
+  //   bool enabled = true,
+  //   ValueChanged<String?>? onChanged,
+  // }) {
+  //   // 修复：直接构建菜单项列表
+  //   final items = [
+  //     // 添加空选项
+  //     DropdownMenuItem<String?>(
+  //       value: null,
+  //       child: Text('未选择', style: TextStyle(color: Colors.grey)),
+  //     ),
+  //     // 添加其他选项
+  //     ...options.map((id) {
+  //       return DropdownMenuItem<String?>(
+  //         value: id,
+  //         child: Text(
+  //           displayValues[id] ?? '未知',
+  //           overflow: TextOverflow.ellipsis,
+  //         ),
+  //       );
+  //     }).toList(),
+  //   ];
+
+  //   return SizedBox(
+  //     width: 180,
+  //     child: DropdownButtonFormField<String?>(
+  //       value: value,
+  //       isExpanded: true,
+  //       decoration: InputDecoration(
+  //         labelText: hint,
+  //         border: const OutlineInputBorder(),
+  //         enabled: enabled,
+  //       ),
+  //       items: items,
+  //       onChanged: enabled ? onChanged : null,
+  //     ),
+  //   );
+  // }
+  // 普通下拉框 - 显式使用 String?
   Widget _buildLevelDropdown({
     required String? value,
     required List<String> options,
@@ -245,7 +288,17 @@ class _WorkManagerState extends State<WorkManager> {
     bool enabled = true,
     ValueChanged<String?>? onChanged,
   }) {
-    // 修复：直接构建菜单项列表
+    // 提取中文括号内的内容
+    String extractChineseBracketContent(String text) {
+      // 使用正则表达式匹配中文括号及其内容
+      RegExp exp = RegExp(r'（([^）]+)）');
+      Match? match = exp.firstMatch(text);
+      if (match != null && match.groupCount >= 1) {
+        return match.group(1)!; 
+      }
+      return text; // 如果没有匹配到中文括号，返回原文本
+    }
+
     final items = [
       // 添加空选项
       DropdownMenuItem<String?>(
@@ -254,12 +307,13 @@ class _WorkManagerState extends State<WorkManager> {
       ),
       // 添加其他选项
       ...options.map((id) {
+        String displayText = displayValues[id] ?? '未知';
+        // 提取中文括号内的内容
+        displayText = extractChineseBracketContent(displayText);
+
         return DropdownMenuItem<String?>(
           value: id,
-          child: Text(
-            displayValues[id] ?? '未知',
-            overflow: TextOverflow.ellipsis,
-          ),
+          child: Text(displayText, overflow: TextOverflow.ellipsis),
         );
       }).toList(),
     ];
