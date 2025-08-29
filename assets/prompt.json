@@ -255,6 +255,52 @@
                     }
                 ],
                 "example":"样例1：图片中即将出现什么样的天气？A.晴天 B.多云 C.降雨 D.下雪\n样例2：图片中目前是什么时间？A.清晨 B.中午 C.傍晚 D.深夜\n样例3：图片中这款设备的功能是？A.清洁地板 B.熨烫衣物 C.烘干衣物 D.清洁衣物\n样例4：图片中的建筑位于哪个城市？A.北京 B.上海 C.广州 D.深圳"
+            },
+            {
+                "categoryName": "图片推理",
+                "prompt": "对图像进行深入推理，如根据图片内容特征推断其功能、状态，推测当前物体相关的延伸知识等；",
+                "difficulties": [
+                    " ",
+                    " "
+                ],
+                "collectorTypes": [
+                    {
+                        "collectorTypeName": "推理密码，数字类或者字母单词",
+                        "questionDirections": ["密码", "数字","单词"]
+                    },
+                    {
+                        "collectorTypeName": "emoji",
+                        "questionDirections": ["表情包"]
+                    },
+                    {
+                        "collectorTypeName": "图片猜成语",
+                        "questionDirections": ["提问图片要表达的成语"]
+                    }
+                ],
+                "example":" "
+            },
+            {
+                "categoryName": "空间推理",
+                "prompt": "对图像",
+                "difficulties": [
+                    " ",
+                    " "
+                ],
+                "collectorTypes": [
+                    {
+                        "collectorTypeName": "立体图和展开图对应关系",
+                        "questionDirections": ["密码"]
+                    },
+                    {
+                        "collectorTypeName": "emoji",
+                        "questionDirections": ["表情包"]
+                    },
+                    {
+                        "collectorTypeName": "图片猜成语",
+                        "questionDirections": ["提问图片要表达的成语"]
+                    }
+                ],
+                "example":"样例1：图片中即将出现什么样的天气？A.晴天 B.多云 C.降雨 D.下雪\n样例2：图片中目前是什么时间？A.清晨 B.中午 C.傍晚 D.深夜\n样例3：图片中这款设备的功能是？A.清洁地板 B.熨烫衣物 C.烘干衣物 D.清洁衣物\n样例4：图片中的建筑位于哪个城市？A.北京 B.上海 C.广州 D.深圳"
             }
 
         ]

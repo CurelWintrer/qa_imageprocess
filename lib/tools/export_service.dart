@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
@@ -6,7 +7,6 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
-import 'package:mime/mime.dart';
 import 'package:path/path.dart' as path;
 import 'package:qa_imageprocess/model/answer_model.dart';
 import 'package:qa_imageprocess/model/image_model.dart';
@@ -27,6 +27,8 @@ class ExportService {
   ValueNotifier<double> progress = ValueNotifier<double>(0.0);
   ValueNotifier<String> status = ValueNotifier<String>('准备导出');
 
+  final int concurrentDownloads; //并发下载数量控制
+
   ExportService({
     required this.context,
     required this.category,
@@ -35,9 +37,9 @@ class ExportService {
     this.is_COT = true,
     this.startTime,
     this.endTime,
+    this.concurrentDownloads = 4,
   });
 
-  // 获取所有图片（分页）
   // 获取所有图片（分页）
   Future<List<ImageModel>> _fetchAllImages() async {
     int currentPage = 1;
@@ -52,14 +54,7 @@ class ExportService {
         'pageSize': 60.toString(),
       };
 
-      // 添加可选参数
-      // if (_selectedCategoryId != null) {
-      //   final category = _categories.firstWhere(
-      //     (c) => c['id'] == _selectedCategoryId,
-      //     orElse: () => {'name': ''},
-      //   );
       queryParams['category'] = category;
-      // }
 
       if (startTime != null) {
         queryParams['startTime'] = startTime!;
@@ -72,14 +67,6 @@ class ExportService {
       final uri = Uri.parse(
         '${UserSession().baseUrl}/api/image',
       ).replace(queryParameters: queryParams);
-
-      print('$startTime   $endTime');
-      // 构建基础URL
-      // String url = '${UserSession().baseUrl}/api/image?page=$currentPage&pageSize=60&category=$category&startTime=$startTime&endTime=$endTime';
-      // print(startTime);
-      // print(endTime);
-
-      // final uri = Uri.parse(url);
 
       try {
         final response = await http.get(
@@ -184,90 +171,37 @@ class ExportService {
           final typeDir = Directory(path.join(categoryDir.path, collectorType));
           if (!typeDir.existsSync()) typeDir.createSync(recursive: true);
 
-          // for (final image in typeGroups[collectorType]!) {
-          //   if (image.fileName == null || image.fileName!.isEmpty) continue;
+          final imagesInType = typeGroups[collectorType]!;
 
-          //   // 下载图片
-          //   try {
-          //     status.value = '正在下载: ${image.fileName}';
-          //     final downloadResult = await _downloadImage(image, typeDir.path);
-          //     if (downloadResult == null) continue;
+          // 创建下载队列
+          final downloadQueue = Queue<ImageModel>.from(imagesInType);
+          final List<Future<void>> activeDownloads = [];
+          while (downloadQueue.isNotEmpty || activeDownloads.isNotEmpty) {
+            // 启动新下载（不超过并发限制）
+            // 修改这部分代码
+            while (activeDownloads.length < concurrentDownloads &&
+                downloadQueue.isNotEmpty) {
+              final image = downloadQueue.removeFirst();
 
-          //     final imageFile = downloadResult['file'];
-          //     final imageSize = downloadResult['size'];
-          //     final question = image.questions!.first;
-          //     configData.add(
-          //       _buildConfigItem(
-          //         image,
-          //         question,
-          //         path.join(
-          //           category,
-          //           collectorType,
-          //           path.basename(imageFile.path),
-          //         ),
-          //         imageSize: imageSize, // 传递图片尺寸信息
-          //       ),
-          //     );
-          //   } catch (e) {
-          //     status.value = '图片下载失败: $e';
-          //   } finally {
-          //     processed++;
-          //     progress.value = 0.2 + (processed / totalImages * 0.8);
-          //   }
-          // }
-          for (final image in typeGroups[collectorType]!) {
-            if (image.fileName == null || image.fileName!.isEmpty) continue;
+              // 使用临时变量存储 future
+              final tempFuture = _processImage(
+                image: image,
+                saveDir: typeDir.path,
+                configData: configData,
+              );
 
-            // 下载图片
-            try {
-              status.value = '正在下载: ${image.fileName}';
-              final downloadResult = await _downloadImage(image, typeDir.path);
-              if (downloadResult == null) continue;
+              // 使用 tempFuture 而不是 future
+              tempFuture.whenComplete(() {
+                activeDownloads.remove(tempFuture);
+                processed++;
+                progress.value = 0.2 + (processed / totalImages * 0.8);
+              });
 
-              final imageFile = downloadResult['file'];
-              final imageSize = downloadResult['size'];
-
-              // 生成配置文件数据
-              if (image.questions != null && image.questions!.isNotEmpty) {
-                final question = image.questions!.first;
-                configData.add(
-                  _buildConfigItem(
-                    image,
-                    question,
-                    path.join(
-                      category,
-                      collectorType,
-                      path.basename(imageFile.path),
-                    ),
-                    imageSize: imageSize, // 传递图片尺寸信息
-                  ),
-                );
-              } else {
-                // 即使没有问题数据，也创建一个空的配置项
-                configData.add(
-                  _buildConfigItem(
-                    image,
-                    QuestionModel(
-                      questionID: -1,
-                      questionText: '',
-                      rightAnswer: AnswerModel(answerID: -1, answerText: ''),
-                      answers: [],
-                    ), // 创建一个空的问题对象
-                    path.join(
-                      category,
-                      collectorType,
-                      path.basename(imageFile.path),
-                    ),
-                    imageSize: imageSize,
-                  ),
-                );
-              }
-            } catch (e) {
-              status.value = '图片下载失败: $e';
-            } finally {
-              processed++;
-              progress.value = 0.2 + (processed / totalImages * 0.8);
+              activeDownloads.add(tempFuture);
             }
+
+            // 等待部分任务完成
+            await Future.delayed(const Duration(milliseconds: 100));
           }
         }
 
@@ -291,6 +225,63 @@ class ExportService {
       status.value = '导出失败: $e';
       rethrow;
     }
+  }
+
+  /// 处理单个图片（下载+生成配置项）
+  Future<void> _processImage({
+    required ImageModel image,
+    required String saveDir,
+    required List<Map<String, dynamic>> configData,
+  }) async {
+    if (image.fileName == null || image.fileName!.isEmpty) return;
+
+    status.value = '下载中: ${image.fileName} (${configData.length + 1})';
+
+    try {
+      final downloadResult = await _downloadImage(image, saveDir);
+      if (downloadResult == null) return;
+
+      final imageFile = downloadResult['file'];
+      final imageSize = downloadResult['size'];
+
+      // 生成配置文件数据
+      final configItem = _createConfigItem(
+        image: image,
+        relativePath: path.join(
+          image.category!,
+          image.collectorType!,
+          path.basename(imageFile.path),
+        ),
+        imageSize: imageSize,
+      );
+
+      configData.add(configItem);
+    } catch (e) {
+      status.value = '图片处理失败: $e';
+    }
+  }
+
+  /// 创建配置项（抽离原有逻辑）
+  Map<String, dynamic> _createConfigItem({
+    required ImageModel image,
+    required String relativePath,
+    required String imageSize,
+  }) {
+    final question = image.questions?.isNotEmpty == true
+        ? image.questions!.first
+        : QuestionModel(
+            questionID: -1,
+            questionText: '',
+            rightAnswer: AnswerModel(answerID: -1, answerText: ''),
+            answers: [],
+          );
+
+    return _buildConfigItem(
+      image,
+      question,
+      relativePath.replaceAll('\\', '/'),
+      imageSize: imageSize,
+    );
   }
 
   // 下载单个图片并获取尺寸信息

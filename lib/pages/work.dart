@@ -8,6 +8,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:qa_imageprocess/MyWidget/image_detail.dart';
+import 'package:qa_imageprocess/model/answer_model.dart';
 import 'package:qa_imageprocess/model/image_model.dart';
 import 'package:qa_imageprocess/model/image_state.dart';
 import 'package:qa_imageprocess/model/question_model.dart';
@@ -180,7 +181,6 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
   //   }
   // }
 
-
   // 加载更多图片
   void _loadMoreImages() {
     if (_hasMore && !_isLoading) {
@@ -228,6 +228,8 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
             onClose: () => Navigator.pop(context),
             onImageDeleted: _handleImageDeleted,
             onImageOaUpdated: _handleImageQaUpadted,
+            onAnswerUpdated: _handleAnswerUpdated,
+            onExplanationUpdated: _handleExplanationUpdated,
           ),
         );
       },
@@ -419,7 +421,6 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
     );
   }
 
-
   Future<void> _addImages(int workID) async {
     try {
       // 打开Windows文件选择器，选择多个图片文件
@@ -476,12 +477,10 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
         // 检查响应状态
         if (response.statusCode == 200) {
           print('文件 $fileName 上传成功');
-        } else if(response.statusCode==400){
+        } else if (response.statusCode == 400) {
           print('文件 $fileName 上传失败: ${responseBody}');
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('${jsonDecode(responseBody)['message']}'),
-            ),
+            SnackBar(content: Text('${jsonDecode(responseBody)['message']}')),
           );
         }
       }
@@ -668,14 +667,117 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
     }
   }
 
+  //根据问题生成答案和解析等
+  Future<void> _executeAIAnswerAnexplanation(ImageModel image) async {
+    if (mounted) {
+      setState(() {
+        _processingImageIDs.add(image.imageID);
+      });
+      try {
+        final answers = await AiService.getAnswer(image);
+        if (answers == null) throw Exception('AI返回空数据');
+        final updatedImage = await _updateImageQA(
+          image: image,
+          questionText: image.questions!.first.questionText,
+          answers: answers.answers,
+          rightAnswerIndex: answers.rightAnswerIndex,
+          explanation: answers.explanation,
+          textCOT: answers.COT,
+        );
+        setState(() {
+          final index = _images.indexWhere(
+            (img) => img.imageID == updatedImage!.imageID,
+          );
+          if (index != -1) {
+            _images[index] = updatedImage!;
+          }
+        });
+        if (updatedImage == null) throw Exception('图片更新失败');
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('成功生成答案和解析')));
+      } catch (e) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('答案生成失败$e')));
+      } finally {
+        if (mounted) {
+          setState(() {
+            _processingImageIDs.remove(image.imageID);
+          });
+        }
+      }
+    }
+  }
+
+  //寻找正确答案索引
+  int _findRightAnswerIndex(List<AnswerModel> answers, int rightAnswerId) {
+    for (int i = 0; i < answers.length; i++) {
+      if (answers[i].answerID == rightAnswerId) {
+        return i;
+      }
+    }
+    return -1; // 未找到匹配项，返回-1
+  }
+
+  //根据问题和答案生成解析和解题步骤
+  Future<void> _executeAIExplanationCOT(ImageModel image) async {
+    if (mounted) {
+      setState(() {
+        _processingImageIDs.add(image.imageID);
+      });
+      try {
+        final explanationCot = await AiService.getExplanationAndCOT(image);
+        if (explanationCot == null) throw Exception('AI返回空数据');
+        // QuestionModel
+
+        final updatedImage = await _updateImageQA(
+          image: image,
+          questionText: image.questions!.first.questionText,
+          answers: image.questions!.first.answers
+              .map((answer) => answer.answerText)
+              .toList(),
+          rightAnswerIndex: _findRightAnswerIndex(
+            image.questions!.first.answers,
+            image.questions!.first.rightAnswer.answerID,
+          ),
+          explanation: explanationCot.explanation,
+          textCOT: explanationCot.COT,
+        );
+        setState(() {
+          final index = _images.indexWhere(
+            (img) => img.imageID == updatedImage!.imageID,
+          );
+          if (index != -1) {
+            _images[index] = updatedImage!;
+          }
+        });
+        if (updatedImage == null) throw Exception('图片更新失败');
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('成功生成答案和解析')));
+      } catch (e) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('答案生成失败$e')));
+      } finally {
+        if (mounted) {
+          setState(() {
+            _processingImageIDs.remove(image.imageID);
+          });
+        }
+      }
+    }
+  }
+
   // 网格项组件
-   Widget _buildGridItem(ImageModel image) {
+  Widget _buildGridItem(ImageModel image) {
     final firstQuestion = image.questions?.isNotEmpty == true
         ? image.questions?.first
         : null;
     final bool isProcessing = _processingImageIDs.contains(image.imageID);
     final bool isSelected = _selectedImageIDs.contains(image.imageID);
-    
+
     return Container(
       key: ValueKey(image.imageID),
       decoration: BoxDecoration(
@@ -718,7 +820,8 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
                           ? ClipRRect(
                               borderRadius: BorderRadius.circular(8),
                               child: CachedNetworkImage(
-                                imageUrl: '${UserSession().baseUrl}/${image.path}',
+                                imageUrl:
+                                    '${UserSession().baseUrl}/${image.path}',
                                 fit: BoxFit.cover,
                                 placeholder: (context, url) => Container(
                                   color: Colors.grey[200],
@@ -805,7 +908,7 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
                 ],
               ],
             ),
-            
+
             // 多选框（悬浮在右上角）
             if (_isInSelectionMode)
               Positioned(
@@ -824,7 +927,7 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
                   ),
                 ),
               ),
-            
+
             // 处理中遮罩
             if (isProcessing)
               Positioned.fill(
@@ -915,7 +1018,7 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
 
     // 使用队列控制并发数量
     final queue = Queue<Future>();
-    const maxConcurrency = 5; // 最大并发数
+    const maxConcurrency = 8; // 最大并发数
 
     for (final imageID in imagesToProcess) {
       while (queue.length >= maxConcurrency) {
@@ -935,7 +1038,7 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
           .then((_) {
             processedCount++;
             if (processedCount % 5 == 0 || processedCount == totalCount) {
-              // 每处理5张或全部完成时更新进度
+              // 每处理8张或全部完成时更新进度
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text("处理进度: $processedCount/$totalCount")),
@@ -949,7 +1052,6 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
           });
     }
 
-    // 等待所有任务完成
     await Future.wait(queue);
 
     if (mounted) {
@@ -1092,6 +1194,22 @@ class _WorkDetailScreenState extends State<WorkDetailScreen> {
 
   void _handleImageQaUpadted(ImageModel currentImage) {
     _executeAITask(currentImage);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('正在加载，可关闭弹窗')));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('正在加载，可关闭弹窗')));
+  }
+
+  void _handleAnswerUpdated(ImageModel updatedImage) {
+    _executeAIAnswerAnexplanation(updatedImage);
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('正在加载，可关闭弹窗')));
+  }
+
+  void _handleExplanationUpdated(ImageModel updatedImage) {
+    _executeAIExplanationCOT(updatedImage);
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('正在加载，可关闭弹窗')));
   }
 }

@@ -20,7 +20,10 @@ import 'package:qa_imageprocess/user_session.dart';
 typedef ImageUpdateCallback = void Function(ImageModel updatedImage);
 typedef ImageDeleteCallback = void Function(int imageID);
 typedef ImageAiQaCallback = void Function(ImageModel updatedImage);
-typedef DeprecateImageCallBack=void Function(int imageID);
+typedef DeprecateImageCallBack = void Function(int imageID);
+typedef ImageAnswerUpdatedCallback = void Function(ImageModel updatedImage);
+typedef ImageExplanationUpdatedCallback =
+    void Function(ImageModel updatedImage);
 
 class ImageDetail extends StatefulWidget {
   final ImageModel image;
@@ -29,6 +32,8 @@ class ImageDetail extends StatefulWidget {
   final ImageDeleteCallback? onImageDeleted;
   final ImageAiQaCallback? onImageOaUpdated;
   final DeprecateImageCallBack? onDeprecateImage;
+  final ImageAnswerUpdatedCallback? onAnswerUpdated;
+  final ImageExplanationUpdatedCallback? onExplanationUpdated;
 
   const ImageDetail({
     super.key,
@@ -38,6 +43,8 @@ class ImageDetail extends StatefulWidget {
     this.onImageDeleted,
     this.onImageOaUpdated,
     this.onDeprecateImage,
+    this.onAnswerUpdated,
+    this.onExplanationUpdated,
   });
 
   @override
@@ -369,6 +376,8 @@ class _ImageDetailState extends State<ImageDetail> {
           question.questionText,
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
+        SizedBox(width: 15),
+
         const SizedBox(height: 8),
         _buildAnswerIndicators(question),
         const SizedBox(height: 16),
@@ -431,6 +440,14 @@ class _ImageDetailState extends State<ImageDetail> {
           }).toList(),
         ),
 
+        const SizedBox(height: 16),
+
+        if (widget.onExplanationUpdated != null)
+          IconButton(
+            onPressed: () => {widget.onExplanationUpdated!(currentImage)},
+            icon: Icon(Icons.tips_and_updates),
+            tooltip: '生成解析',
+          ),
         const SizedBox(height: 16),
 
         // 解析部分
@@ -571,8 +588,6 @@ class _ImageDetailState extends State<ImageDetail> {
       ),
     );
   }
-
-
 
   // 图片上传方法
   Future<void> _uploadImage() async {
@@ -903,8 +918,18 @@ class _ImageDetailState extends State<ImageDetail> {
                     '状态',
                     ImageState.getStateText(currentImage.state),
                   ),
-                  _buildInfoItem('创建日期', DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.parse(currentImage.created_at))),
-                  _buildInfoItem('更新日期', DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.parse(currentImage.updated_at))),
+                  _buildInfoItem(
+                    '创建日期',
+                    DateFormat(
+                      'yyyy-MM-dd HH:mm:ss',
+                    ).format(DateTime.parse(currentImage.created_at)),
+                  ),
+                  _buildInfoItem(
+                    '更新日期',
+                    DateFormat(
+                      'yyyy-MM-dd HH:mm:ss',
+                    ).format(DateTime.parse(currentImage.updated_at)),
+                  ),
                 ],
               ),
             ),
@@ -921,8 +946,12 @@ class _ImageDetailState extends State<ImageDetail> {
                   hoverColor: Colors.redAccent,
                 ),
               SizedBox(width: 10),
-              if(widget.onDeprecateImage!=null)
-              IconButton(onPressed: ()=>{_deprecateImage(currentImage.imageID)}, icon: Icon(Icons.remove),tooltip: '移除图片'),
+              if (widget.onDeprecateImage != null)
+                IconButton(
+                  onPressed: () => {_deprecateImage(currentImage.imageID)},
+                  icon: Icon(Icons.remove),
+                  tooltip: '移除图片',
+                ),
               SizedBox(width: 10),
               IconButton(
                 onPressed: () => {
@@ -1000,16 +1029,29 @@ class _ImageDetailState extends State<ImageDetail> {
                       ],
                     ),
 
-                    // 标题
-                    const Text(
-                      '题目内容',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                        color: Colors.blue,
-                      ),
+                    Row(
+                      children: [
+                        // 标题
+                        const Text(
+                          '题目内容',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                            color: Colors.blue,
+                          ),
+                        ),
+                        const SizedBox(width: 15),
+                        if (widget.onExplanationUpdated != null)
+                          IconButton(
+                            onPressed: () => {
+                              widget.onAnswerUpdated!(currentImage),
+                            },
+                            icon: Icon(Icons.question_answer),
+                            tooltip: '生成答案和解析',
+                            color: Colors.blueAccent,
+                          ),
+                      ],
                     ),
-                    const SizedBox(height: 12),
 
                     // 切换编辑模式
                     if (_isEditing)

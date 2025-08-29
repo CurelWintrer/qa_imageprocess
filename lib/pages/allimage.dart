@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'dart:convert';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -5,9 +6,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:qa_imageprocess/MyWidget/image_detail.dart';
+import 'package:qa_imageprocess/model/answer_model.dart';
 import 'package:qa_imageprocess/model/image_model.dart';
 import 'package:qa_imageprocess/model/image_state.dart';
 import 'package:qa_imageprocess/model/question_model.dart';
+import 'package:qa_imageprocess/tools/ai_service.dart';
 import 'package:qa_imageprocess/tools/export_service.dart';
 import 'package:qa_imageprocess/user_session.dart';
 
@@ -58,6 +61,14 @@ class _AllimageState extends State<Allimage> {
   DateTime? _endDate;
 
   int _totalImageCount = 0;
+  //正在处理的图片ID
+  Set<int> _processingImageIDs = {}; // 记录正在处理AI的图片ID
+
+  Set<int> _selectedImageIDs = {}; // 存储选中的图片ID
+  bool _isInSelectionMode = false; // 是否处于多选模式
+
+  //出错的图片
+  List<ImageModel> _faultImages=[];
 
   @override
   void initState() {
@@ -284,6 +295,13 @@ class _AllimageState extends State<Allimage> {
     }
   }
 
+  void _selectAllImages() {
+    setState(() {
+      _selectedImageIDs = Set<int>.from(_images.map((img) => img.imageID));
+      _isInSelectionMode = true;
+    });
+  }
+
   Widget _buildTitleSelector() {
     return Container(
       padding: const EdgeInsets.all(16.0),
@@ -329,6 +347,48 @@ class _AllimageState extends State<Allimage> {
               _buildDatePicker('结束时间', _endDate, (date) {
                 setState(() => _endDate = date);
               }),
+              const SizedBox(width: 8),
+              if (_isInSelectionMode) ...[
+                IconButton(
+                  icon: const Icon(Icons.select_all),
+                  onPressed: _selectedImageIDs.length == _images.length
+                      ? _deselectAllImages
+                      : _selectAllImages,
+                  tooltip: _selectedImageIDs.length == _images.length
+                      ? '取消全选'
+                      : '全选',
+                ),
+                IconButton(
+                  icon: const Icon(Icons.auto_awesome),
+                  onPressed: ()=>{_batchProcessImages(0)},
+                  tooltip: '批量QA',
+                  color: Colors.blue,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.question_answer),
+                  onPressed: ()=>{_batchProcessImages(1)},
+                  tooltip: '批量答案',
+                  color: Colors.orangeAccent
+                ),
+                IconButton(
+                  icon: const Icon(Icons.tips_and_updates),
+                  onPressed: ()=>{_batchProcessImages(2)},
+                  tooltip: '批量解析',
+                  color: Colors.green
+                ),
+                IconButton(
+                  icon: const Icon(Icons.cancel),
+                  onPressed: _deselectAllImages,
+                  tooltip: '退出多选',
+                  color: Colors.red
+                ),
+              ] else if (_images.isNotEmpty) ...[
+                IconButton(
+                  icon: const Icon(Icons.checklist),
+                  onPressed: () => setState(() => _isInSelectionMode = true),
+                  tooltip: '多选模式',
+                ),
+              ],
             ],
           );
           final children = [
@@ -485,6 +545,8 @@ class _AllimageState extends State<Allimage> {
     final firstQuestion = image.questions?.isNotEmpty == true
         ? image.questions?.first
         : null;
+    final bool isProcessing = _processingImageIDs.contains(image.imageID);
+    final bool isSelected = _selectedImageIDs.contains(image.imageID);
 
     return GestureDetector(
       onLongPress: () => {},
@@ -591,9 +653,58 @@ class _AllimageState extends State<Allimage> {
               Text('${image.category}'),
             ],
           ),
+          //多选标识
+                      // 多选框（悬浮在右上角）
+            if (_isInSelectionMode)
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Checkbox(
+                    value: isSelected,
+                    onChanged: (value) => setState(() {
+                      _toggleImageSelection(image.imageID);
+                    }),
+                  ),
+                ),
+              ),
+          //处理中标识
+          if (isProcessing)
+            Positioned.fill(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  color: Colors.black54,
+                  child: const Center(
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 3.0,
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
+  }
+
+    // 添加辅助方法
+  void _toggleImageSelection(int imageID) {
+    if (_selectedImageIDs.contains(imageID)) {
+      _selectedImageIDs.remove(imageID);
+    } else {
+      _selectedImageIDs.add(imageID);
+    }
+
+    // 如果没有选中任何图片，退出多选模式
+    if (_selectedImageIDs.isEmpty) {
+      _isInSelectionMode = false;
+    }
   }
 
   // 图片状态标签
@@ -765,11 +876,224 @@ class _AllimageState extends State<Allimage> {
             onImageUpdated: _handleImageUpdated,
             onClose: () => Navigator.pop(context),
             onImageDeleted: _handleImageDeleted,
-            // onImageOaUpdated: _handleImageQaUpadted,
+            onImageOaUpdated: _handleImageQaUpadted,
+            onExplanationUpdated: _handleExplanationUpdated,
+            onAnswerUpdated: _handleAnswerUpdated,
           ),
         );
       },
     );
+  }
+
+  void _handleImageQaUpadted(ImageModel updatedImage) {
+    _executeAITask(updatedImage);
+  }
+
+  Future<void> _executeAITask(ImageModel image) async {
+    if (mounted) {
+      setState(() {
+        _processingImageIDs.add(image.imageID);
+      });
+    }
+    try {
+      // 1. 调用AI服务
+      final qa = await AiService.getQA(
+        image,
+        questionDifficulty: _selectedDifficulty ?? 0,
+      );
+      if (qa == null) throw Exception('AI服务返回空数据');
+
+      debugPrint('AI生成结果: ${qa.toString()}');
+
+      // 2. 更新到后端API
+      final updatedImage = await _updateImageQA(
+        image: image,
+        questionText: qa.question,
+        answers: qa.options,
+        rightAnswerIndex: qa.correctAnswer,
+        explanation: qa.explanation,
+        textCOT: qa.textCOT,
+      );
+
+      setState(() {
+        // 找到并更新图片列表中的对应图片
+        final index = _images.indexWhere(
+          (img) => img.imageID == updatedImage!.imageID,
+        );
+        if (index != -1) {
+          _images[index] = updatedImage!;
+        }
+      });
+
+      if (updatedImage == null) throw Exception('图片更新失败');
+      // 4. 显示成功提示
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('图片${updatedImage.imageID}AI处理完成')),
+      );
+    } catch (e, stackTrace) {
+      debugPrint('AI处理错误: $e\n$stackTrace');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('处理失败: ${e.toString()}')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _processingImageIDs.remove(image.imageID);
+        });
+      }
+    }
+  }
+
+  //图片批量处理
+  Future<void> _batchProcessImages(int model) async {
+    if (_selectedImageIDs.isEmpty) return;
+
+    // 确认对话框
+    final confirmed =
+        await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('确认批量处理'),
+            content: Text('确定要批量处理选中的 ${_selectedImageIDs.length} 张图片吗？'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('取消'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('开始处理'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (!confirmed) return;
+
+    // 复制一份选中的图片ID，防止在处理过程中修改
+    final imagesToProcess = List<int>.from(_selectedImageIDs);
+    final totalCount = imagesToProcess.length;
+
+    // 添加到处理队列并清空选择
+    setState(() {
+      _processingImageIDs.addAll(imagesToProcess);
+      _deselectAllImages();
+    });
+
+    int processedCount = 0;
+
+    // 使用队列控制并发数量
+    final queue = Queue<Future>();
+    const maxConcurrency = 8; // 最大并发数
+
+    for (final imageID in imagesToProcess) {
+      while (queue.length >= maxConcurrency) {
+        await Future.any(queue);
+      }
+
+      final image = _images.firstWhere((img) => img.imageID == imageID);
+
+      Future task;
+      // 先声明 task 变量
+      switch(model){
+        case 0:
+        task  = _executeAITask(image);
+        case 1:
+        task=_executeAIAnswerAnexplanation(image);
+        case 2:
+        task= _executeAIExplanationCOT(image);
+        default:
+        task=_executeAITask(image);
+      };
+      
+
+      // 将任务添加到队列
+      queue.add(task);
+
+      // 使用 task 变量
+      task
+          .then((_) {
+            processedCount++;
+            if (processedCount % 5 == 0 || processedCount == totalCount) {
+              // 每处理8张或全部完成时更新进度
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text("处理进度: $processedCount/$totalCount")),
+                );
+              }
+            }
+            queue.remove(task);
+          })
+          .catchError((error) {
+            queue.remove(task);
+          });
+    }
+
+    await Future.wait(queue);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("批量处理完成! 成功: $processedCount/$totalCount")),
+      );
+    }
+  }
+
+  //清除选中图片
+  void _deselectAllImages() {
+    setState(() {
+      _selectedImageIDs.clear();
+      _isInSelectionMode = false;
+    });
+  }
+
+  Future<ImageModel?> _updateImageQA({
+    required ImageModel image,
+    required String questionText,
+    String? explanation,
+    String? textCOT,
+    required List<String> answers,
+    required int rightAnswerIndex,
+  }) async {
+    final url = '${UserSession().baseUrl}/api/image/${image.imageID}/qa';
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ${UserSession().token ?? ''}',
+    };
+    final body = jsonEncode({
+      'difficulty': image.difficulty ?? 0,
+      'questionText': questionText,
+      'answers': answers,
+      'rightAnswerIndex': rightAnswerIndex,
+      'explanation': explanation,
+      'textCOT': textCOT,
+    });
+
+    try {
+      final response = await http.put(
+        Uri.parse(url),
+        headers: headers,
+        body: body,
+      );
+
+      print(response.body);
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        return ImageModel.fromJson(responseData['data']);
+      } else {
+        throw Exception('更新失败: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('更新失败: $e')));
+      }
+      return null;
+    }
   }
 
   Widget _buildCategoryDropdown() {
@@ -828,50 +1152,6 @@ class _AllimageState extends State<Allimage> {
   }
 
   // 普通下拉框 - 显式使用 String?
-  // Widget _buildLevelDropdown({
-  //   required String? value,
-  //   required List<String> options,
-  //   required String hint,
-  //   required Map<String, String> displayValues,
-  //   bool enabled = true,
-  //   ValueChanged<String?>? onChanged,
-  // }) {
-  //   // 修复：直接构建菜单项列表
-  //   final items = [
-  //     // 添加空选项
-  //     DropdownMenuItem<String?>(
-  //       value: null,
-  //       child: Text('未选择', style: TextStyle(color: Colors.grey)),
-  //     ),
-  //     // 添加其他选项
-  //     ...options.map((id) {
-  //       return DropdownMenuItem<String?>(
-  //         value: id,
-  //         child: Text(
-  //           displayValues[id] ?? '未知',
-  //           overflow: TextOverflow.ellipsis,
-  //         ),
-  //       );
-  //     }).toList(),
-  //   ];
-
-  //   return SizedBox(
-  //     width: 180,
-  //     child: DropdownButtonFormField<String?>(
-  //       value: value,
-  //       isExpanded: true,
-  //       decoration: InputDecoration(
-  //         labelText: hint,
-  //         border: const OutlineInputBorder(),
-  //         enabled: enabled,
-  //       ),
-  //       items: items,
-  //       onChanged: enabled ? onChanged : null,
-  //     ),
-  //   );
-  // }
-
-  // 普通下拉框 - 显式使用 String?
   Widget _buildLevelDropdown({
     required String? value,
     required List<String> options,
@@ -886,7 +1166,7 @@ class _AllimageState extends State<Allimage> {
       RegExp exp = RegExp(r'（([^）]+)）');
       Match? match = exp.firstMatch(text);
       if (match != null && match.groupCount >= 1) {
-        return match.group(1)!; 
+        return match.group(1)!;
       }
       return text; // 如果没有匹配到中文括号，返回原文本
     }
@@ -1019,6 +1299,120 @@ class _AllimageState extends State<Allimage> {
       });
     } catch (e) {
       print('Error fetching question directions: $e');
+    }
+  }
+
+  //寻找正确答案索引
+  int _findRightAnswerIndex(List<AnswerModel> answers, int rightAnswerId) {
+    for (int i = 0; i < answers.length; i++) {
+      if (answers[i].answerID == rightAnswerId) {
+        return i;
+      }
+    }
+    return -1; // 未找到匹配项，返回-1
+  }
+
+  Future<void> _executeAIExplanationCOT(ImageModel image) async {
+    if (mounted) {
+      setState(() {
+        _processingImageIDs.add(image.imageID);
+      });
+      try {
+        final explanationCot = await AiService.getExplanationAndCOT(image);
+        if (explanationCot == null) throw Exception('AI返回空数据');
+        // QuestionModel
+
+        final updatedImage = await _updateImageQA(
+          image: image,
+          questionText: image.questions!.first.questionText,
+          answers: image.questions!.first.answers
+              .map((answer) => answer.answerText)
+              .toList(),
+          rightAnswerIndex: _findRightAnswerIndex(
+            image.questions!.first.answers,
+            image.questions!.first.rightAnswer.answerID,
+          ),
+          explanation: explanationCot.explanation,
+          textCOT: explanationCot.COT,
+        );
+        setState(() {
+          final index = _images.indexWhere(
+            (img) => img.imageID == updatedImage!.imageID,
+          );
+          if (index != -1) {
+            _images[index] = updatedImage!;
+          }
+        });
+        if (updatedImage == null) throw Exception('图片更新失败');
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('成功生成答案和解析')));
+      } catch (e) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('答案生成失败$e')));
+      } finally {
+        if (mounted) {
+          setState(() {
+            _processingImageIDs.remove(image.imageID);
+          });
+        }
+      }
+    }
+  }
+
+  void _handleExplanationUpdated(ImageModel updatedImage) {
+    _executeAIExplanationCOT(updatedImage);
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('正在加载，可关闭弹窗')));
+  }
+    void _handleAnswerUpdated(ImageModel updatedImage) {
+    _executeAIAnswerAnexplanation(updatedImage);
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('正在加载，可关闭弹窗')));
+  }
+
+  Future<void> _executeAIAnswerAnexplanation(ImageModel image) async {
+    if (mounted) {
+      setState(() {
+        _processingImageIDs.add(image.imageID);
+      });
+      try {
+        final answers = await AiService.getAnswer(image);
+        if (answers == null) throw Exception('AI返回空数据');
+        final updatedImage = await _updateImageQA(
+          image: image,
+          questionText: image.questions!.first.questionText,
+          answers: answers.answers,
+          rightAnswerIndex: answers.rightAnswerIndex,
+          explanation: answers.explanation,
+          textCOT: answers.COT,
+        );
+        setState(() {
+          final index = _images.indexWhere(
+            (img) => img.imageID == updatedImage!.imageID,
+          );
+          if (index != -1) {
+            _images[index] = updatedImage!;
+          }
+        });
+        if (updatedImage == null) throw Exception('图片更新失败');
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('成功生成答案和解析')));
+      } catch (e) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('答案生成失败$e')));
+      } finally {
+        if (mounted) {
+          setState(() {
+            _processingImageIDs.remove(image.imageID);
+          });
+        }
+      }
     }
   }
 }
