@@ -68,12 +68,18 @@ class _GetRepeatedImageState extends State<GetRepeatedImage> {
   bool isLoading = false;
   final ScrollController _scrollController = ScrollController();
 
+  // bool isRepeatedImageModel=true;
+  // bool isErrorImageModel=false;
+
+
   @override
   void initState() {
     super.initState();
     _fetchDuplicateGroups();
   }
 
+
+  //获取重复图片组
   Future<void> _fetchDuplicateGroups() async {
     setState(() => isLoading = true);
     try {
@@ -186,92 +192,57 @@ class _GetRepeatedImageState extends State<GetRepeatedImage> {
     );
   }
 
-  
   void _handelDeprecateImage(int imageID) {
     setState(() {
-    // 遍历所有重复分组
-    for (var i = 0; i < duplicateGroups.length; i++) {
-      final group = duplicateGroups[i];
-      
-      // 在当前分组中查找需要删除的图片
-      final index = group.images.indexWhere((img) => img.imageID == imageID);
-      if (index != -1) {
-        // 从分组中移除图片
-        group.images.removeAt(index);
-        
-        // 更新分组的计数
-        final updatedGroup = DuplicateGroupModel(
-          fileName: group.fileName,
-          count: group.count - 1,
-          images: group.images,
-        );
-        
-        // 替换原分组
-        duplicateGroups[i] = updatedGroup;
-        
-        // 如果分组中图片数量少于2，移除整个分组（不再构成重复）
-        if (updatedGroup.images.length < 2) {
-          duplicateGroups.removeAt(i);
+      // 遍历所有重复分组
+      for (var i = 0; i < duplicateGroups.length; i++) {
+        final group = duplicateGroups[i];
+
+        // 在当前分组中查找需要删除的图片
+        final index = group.images.indexWhere((img) => img.imageID == imageID);
+        if (index != -1) {
+          // 从分组中移除图片
+          group.images.removeAt(index);
+
+          // 更新分组的计数
+          final updatedGroup = DuplicateGroupModel(
+            fileName: group.fileName,
+            count: group.count - 1,
+            images: group.images,
+          );
+
+          // 替换原分组
+          duplicateGroups[i] = updatedGroup;
+
+          // 如果分组中图片数量少于2，移除整个分组（不再构成重复）
+          if (updatedGroup.images.length < 2) {
+            duplicateGroups.removeAt(i);
+          }
+          Navigator.pop(context);
+
+          break;
         }
-        
-        break;
       }
-    }
-  });
+    });
   }
 
-// 处理图片更新回调
-void _handleImageUpdated(ImageModel updatedImage) {
-  setState(() {
-    // 遍历所有重复分组
-    for (var group in duplicateGroups) {
-      // 在当前分组中查找需要更新的图片
-      final index = group.images.indexWhere((img) => img.imageID == updatedImage.imageID);
-      if (index != -1) {
-        // 更新图片信息
-        group.images[index] = updatedImage;
-        break;
-      }
-    }
-  });
-}
-
-// 处理图片删除回调
-void _handleImageDeleted(int imageID) {
-  setState(() {
-    // 遍历所有重复分组
-    for (var i = 0; i < duplicateGroups.length; i++) {
-      final group = duplicateGroups[i];
-      
-      // 在当前分组中查找需要删除的图片
-      final index = group.images.indexWhere((img) => img.imageID == imageID);
-      if (index != -1) {
-        // 从分组中移除图片
-        group.images.removeAt(index);
-        
-        // 更新分组的计数
-        final updatedGroup = DuplicateGroupModel(
-          fileName: group.fileName,
-          count: group.count - 1,
-          images: group.images,
+  // 处理图片更新回调
+  void _handleImageUpdated(ImageModel updatedImage) {
+    setState(() {
+      // 遍历所有重复分组
+      for (var group in duplicateGroups) {
+        // 在当前分组中查找需要更新的图片
+        final index = group.images.indexWhere(
+          (img) => img.imageID == updatedImage.imageID,
         );
-        
-        // 替换原分组
-        duplicateGroups[i] = updatedGroup;
-        
-        // 如果分组中图片数量少于2，移除整个分组（不再构成重复）
-        if (updatedGroup.images.length < 2) {
-          duplicateGroups.removeAt(i);
+        if (index != -1) {
+          // 更新图片信息
+          group.images[index] = updatedImage;
+          break;
         }
-        
-        break;
       }
-    }
-  });
-  
-  // 关闭图片详情弹窗
-  Navigator.pop(context);
-}
+    });
+  }
 
   Widget _buildGridItem(ImageModel image) {
     final firstQuestion = image.questions?.isNotEmpty == true
@@ -280,7 +251,9 @@ void _handleImageDeleted(int imageID) {
 
     return GestureDetector(
       onLongPress: () => {},
-      onTap: () {_openImageDetail(image);},
+      onTap: () {
+        _openImageDetail(image);
+      },
       child: Stack(
         children: [
           Column(
@@ -375,7 +348,7 @@ void _handleImageDeleted(int imageID) {
                   ),
                 ),
               ],
-              Text('${image.category}')
+              Text('${image.category}'),
             ],
           ),
         ],
@@ -557,13 +530,19 @@ void _handleImageDeleted(int imageID) {
         title: const Text('重复图片管理'),
         centerTitle: true,
         actions: [
-          IconButton(onPressed: ()=>{_fetchDuplicateGroups()}, icon: Icon(Icons.refresh),tooltip: '刷新'),
+          IconButton(
+            onPressed: () => {_fetchDuplicateGroups()},
+            icon: Icon(Icons.refresh),
+            tooltip: '刷新',
+          ),
           SizedBox(width: 15),
           SizedBox(
             width: 120,
             height: 36,
             child: ElevatedButton(
-              onPressed: () => {Navigator.pushNamed(context, '/getSimilarImage')},
+              onPressed: () => {
+                Navigator.pushNamed(context, '/getSimilarImage'),
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue,
                 foregroundColor: Colors.white,
@@ -574,7 +553,25 @@ void _handleImageDeleted(int imageID) {
               child: const Text('查找相似'),
             ),
           ),
-          SizedBox(width:30)
+          SizedBox(width: 15),
+          SizedBox(
+            width: 120,
+            height: 36,
+            child: ElevatedButton(
+              onPressed: () => {
+                Navigator.pushNamed(context, '/findError'),
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text('错误查询'),
+            ),
+          ),
+          SizedBox(width: 30),
         ],
       ),
       body: isLoading
@@ -604,6 +601,4 @@ void _handleImageDeleted(int imageID) {
             ),
     );
   }
-
-
 }
